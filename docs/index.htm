@@ -1,0 +1,126 @@
+<article>
+	<h1>Affirm</h1>
+
+	<ol id="page-toc">
+		<li><a href="#section-1">Installation</a></li>
+		<li><a href="#section-2">Setup</a></li>
+		<li><a href="#section-3">Customer Usage</a></li>
+		<li><a href="#section-4">Order Review</a></li>
+		<li><a href="#section-5">FAQ</a></li>
+		<li><a href="#section-6">Troubleshooting</a></li>
+	</ol>
+
+	<div id="related-toc">
+		<h2>Relevant Links</h2>
+		<ul>
+			<li><a href="http://docs.woothemes.com/document/installing-and-activating-woocommerce-extensions/">Installing and Activating WooThemes Licenses</a></li><li><a href="https://support.woothemes.com/hc/en-us/articles/202881643-Using-WooThemes-Support-Resources">Using WooThemes Support Resources</a></li><li><a href="http://docs.woothemes.com/documentation/plugins/woocommerce/woocommerce-extensions/">More from &ldquo;Extensions&rdquo;</a></li>
+		</ul>
+	</div>
+
+	<ul class="extension-links">
+		<li class="purchase"><a href="http://www.woothemes.com/products/affirm/"><span>Purchase</span></a></li>
+		<li class="changelog"><a href="http://www.woothemes.com/changelogs/extensions/woocommerce-gateway-affirm/changelog.txt"><span>Changelog</span></a></li>
+	</ul>
+
+	<div class="entry">
+		<p>
+			The <a href="http://www.woothemes.com/products/affirm/" target="_blank">Affirm</a> plugin extends
+			WooCommerce, allowing your store to accept payments directly via Affirm&#8217;s API.
+		</p>
+		<div class="woo-sc-box info">
+			Note:  Affirm requires an SSL certificate on your site.
+		</div>
+		<div class="woo-sc-box info">
+			Note:  Affirm requires your WooCommerce site to be configured for USD as its currency.  Other currencies are NOT supported.
+		</div>
+		<div class="woo-sc-box info">
+			Note:  The Affirm gateway is available during checkout for US customers only.  Customers based in other countries will not be able to use Affirm.
+		</div>
+		<div class="woo-sc-box info">
+			Affirm supports refunds in <em>WooCommerce 2.2+.</em>
+		</div>
+
+	<h2 id="section-1">Installation <a href="#doc-title" class="woodocs-top-link" title="Back to top">&uarr; Back to Top</a></h2>
+	<ol>
+		<li><strong>Unzip</strong> and <strong>upload</strong> the plugin&#8217;s folder to your <code>/wp-content/plugins/</code> directory.</li>
+		<li><strong>Activate</strong> the extension through the &#8216;Plugins&#8217; menu in WordPress.</li>
+		<li><strong>Install</strong> and <strong>activate</strong> the <a href="http://docs.woothemes.com/document/woothemes-helper/" title="Download and Install the WooThemes Helper plugin" target="_blank">WooThemes Helper plugin</a></li>
+		<li><strong>Go to: Dashboard &gt; WooThemes Helper</strong> and <a href="https://www.woothemes.com/my-account/my-licenses/" title="Your WooThemes License Keys" target="_blank">add your license key</a> to <strong>activate</strong> the product for 2-click updates.</li>
+		<li><strong>Go to: WooCommerce &gt; Settings &gt; Checkout&gt; Affirm</strong> to configure the plugin.</li>
+	</ol>
+	<p>
+		To learn more about installing and managing plugins, see <span class="woo-sc-ilink"><a class="info" href="http://codex.wordpress.org/Managing_Plugins#Installing_Plugins">Installing and Managing Plugins</a></span>.
+	</p>
+
+	<h2 id="section-2">Setup <a href="#doc-title" class="woodocs-top-link" title="Back to top">&uarr; Back to Top</a></h2>
+	<p>
+		In WooCommerce&#8217;s Checkout settings, enable Force Secure Checkout.
+	</p>
+	<p>
+		<img src="affirm-force-secure.png" width="500" alt="Force Secure Checkout." />
+	</p>
+	<p>
+		In Affirm&#8217;s settings, enter your public key, private key, and financial product
+		keys (<a href="https://affirm.com/dashboard" title="Affirm Keys" target="_blank">obtained from your Affirm account</a>).
+		Once enabled, Affirm will display during checkout.
+	</p>
+	<p>
+		<img src="affirm-keys.png" width="500" alt="Enter keys." />
+	</p>
+
+	<h2 id="section-3">Customer Usage <a href="#doc-title" class="woodocs-top-link" title="Back to top">&uarr; Back to Top</a></h2>
+	<p>
+		First, customers (US only) select Affirm on the checkout page.
+	</p>
+	<p>
+		<img src="affirm-place-order.png" width="500" alt="Affirm Place Order" />
+	</p>
+	<p>
+		Then they will be redirected to Affirm to complete payment and will see something like the following:
+	</p>
+	<p>
+		<img src="affirm-payment.png" width="200" alt="Affirm Checkout" />
+	</p>
+
+	<h2 id="section-4">Order Review<a href="#doc-title" class="woodocs-top-link" title="Back to top">&uarr; Back to Top</a></h2>
+	<p>
+		For your convenience, a link to the Affirm merchant portal for each order is provided at the top
+		of the order view.  You can also prompt Affirm to issue refunds from the order view.
+	</p>
+	<p>
+		<img src="affirm-order-view.png" width="500" alt="Affirm Order View" />
+	</p>
+
+	<h2 id="section-5">FAQ <a href="#doc-title" class="woodocs-top-link" title="Back to top">&uarr; Back to Top</a></h2>
+	<h3>The method is not showing.</h3>
+	<p>
+		Your site's currency must be set to USD. Also, customers must have a US based billing address to use
+		Affirm.  Finally, in live mode, SSL must be enabled in order to use Affirm.
+	</p>
+
+	<h3>Nothing happens when the customer attempts to pay with Affirm</h3>
+	<p>
+		This error may be caused by non-standard/poorly coded themes and JavaScript (JS) issues. Common
+		issues include:
+	</p>
+	<ol>
+		<li><span style="line-height: 13px;">JavaScript errors on the checkout page &#8211; To view the error, open up your browser error console (in Chrome: View &gt; developer &gt; JavaScript console) and look for red errors. This should indicate where the error is located and lead you to the problem, i.e., loading jQuery incorrectly</span></li>
+		<li>Failing to load scripts &#8211; Affirm loads JavaScript which it needs to function. If these are not loaded you will see errors. The most common reasons for not loading are:
+			<ol>
+				<li>A theme missing wp_head() or wp_footer() calls</li>
+				<li>Old overridden template files from WooCommerce inside your theme</li>
+				<li>Loading headers/footers in a non-standard way. WooCommerce uses get_header()&#8217;s get_header action to init the checkout and load scripts. If you are not using get_header() you either need to do so, or you need to trigger the get_header action manually using: do_action( &#8216;get_header ); in your custom header loader.</li>
+			</ol>
+		</li>
+	</ol>
+
+	<h3>Is it possible to override templates on the Affirm pages?</h3>
+	<p>No. These pages are served by Affirm.</p>
+
+	<h2 id="section-6">Troubleshooting <a href="#doc-title" class="woodocs-top-link" title="Back to top">&uarr; Back to Top</a></h2>
+	<h3>The customer gets an error when attempting to pay using Affirm.</h3>
+	<p>
+		Ensure that you have input the correct keys and, if you are in live mode, you have entered live
+		keys (not test keys).
+	</p>
+</article>

@@ -1,0 +1,84 @@
+** WooCommerce Gateway Affirm Changelog **
+
+2019-08-06 - version 1.1.8
+* Tweak - WC tested up to 3.7.
+
+2019-07-10 - version 1.1.7
+* Fix    - Missing merchant links on the Affirm settings page.
+
+2019-04-16 - version 1.1.6
+* Tweak - WC 3.6 compatibility.
+* Fix    - Remove incorrect SSL security information.
+
+2019-02-04 - version 1.1.5
+* Update - verbiage on "Place order" button to "Continue with Affirm" when Affirm is selected as payment Method
+* Update - Payment method to show Affirm when country is not selected
+* Update - promo messaging available on category level pages
+* Update - enable/disable for promo messaging on catalog, product and cart pages
+* Update - Min/Max order total can be set in admin page
+* Update - White Affirm logo avaialble
+* Update - Added option to change destination page when Affirm payment is cancelled
+
+2018-11-08 - version 1.1.4
+* Update - Global Affirm js added.
+* Update - Affirm promo data-page-type attribute added.
+* Update - Enhanced analytics added for confirmation page.
+
+2018-10-08 - version 1.1.3
+* Update - WC 3.5 compatibility.
+
+2018-05-23 - version 1.1.2
+* Update - Privacy policy notification.
+* Update - Export/erasure hooks added.
+* Update - WC 3.4 compatibility.
+
+2017-12-15 - version 1.1.1
+* Update - WC tested up to version.
+
+2017-10-18 - version 1.1.0
+* Fix   - Better error handling on checkout. Uses affirm on close event so that mobile users are not stuck on checkout page when error happens.
+* Fix   - Removed deprecated Financial Product Key setting.
+* Fix   - Removed Monthly Payment Estimator Loan Length and Monthly Payment Estimator APR to ensure legal compliance. Affirm now maintains most of the customizations for the monthly payment messaging ('As low as' link) and the associated product modal.
+* Tweak - Add settings for data-promo-id, data-affirm-color, data-learnmore-show. Details of each attribute can be found at https://docs.affirm.com/Integrate_Affirm/Promotional_Messaging#monthly_payment_messaging.
+* Tweak - Update the default text for title and description settings.
+
+2017-06-05 - version 1.0.10
+* Fix - Issue where shipping info is not passed when shipping is disabled. Now it will use billing info.
+
+2017-05-08 - version 1.0.9
+* Fix - Error when `WC()->customer` is not available in `nav-menus.php`.
+
+2017-04-03 - version 1.0.8
+* Fix - Additional updates for WooCommerce 3.0 compatibility
+
+2017-02-22 - version 1.0.7
+* Fix - WooCommerce 3.0 compatibility
+
+2016-11-27 - version 1.0.6
+* Fix - Update minimum as-low-as to $50
+* Fix - Allow 'As Low As' message to be served on HTTP page
+* Fix - Use literal string for text domain in gettext functions
+
+2016-11-15 - version 1.0.5
+* Fix - Issue where variation changes affect total from composite products
+
+2016-11-07 - version 1.0.4
+* Fix - Issue where callback gets called when payment method is not Affirm.
+* Tweak - Added wc_gateway_affirm_initiate_checkout_data to filter params before initiating checkout.
+* Tweak - Pass order_id and order_key in user_confirmation_url to allow localhost tunneling when receiving token from Affirm.
+* Fix - Issue where Affirm Monthly Payment Messaging was not displayed after cart is loaded via AJAX.
+* Fix - Added compatibility with WooCommerce Composite Products.
+
+2016-09-11 - version 1.0.3
+* Tweak - Allow monthly payment estimator APR values starting from zero.
+* Fix - Stops default action of learn more link from happening.
+
+2016-07-19 - version 1.0.2
+* Tweak - Update Affirm logo to the new one
+
+2016-05-27 - version 1.0.1
+* Fix - Captured charge not refunded when an order is cancelled
+* Fix - Authorized charge not voided when an order is cancelled
+
+2016-02-18 - version 1.0.0
+ * First release
