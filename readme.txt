@@ -4,7 +4,7 @@ Tags: woocommerce
 Requires at least: 4.4
 Tested up to: 4.8
 Requires WooCommerce at least: 2.6
-Tested WooCommerce up to: 3.2
+Tested WooCommerce up to: 3.9
 
 Accept installment payments in your WooCommerce store via Affirm
 

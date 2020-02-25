@@ -1,5 +1,13 @@
 ** WooCommerce Gateway Affirm Changelog **
 
+2020-02-20 - version 1.1.9
+* Fix    - Affirm orders can be voided
+* Update - Checkout object reflects actual item quantity
+* Update - Checkout object includes order ID
+* Update - Added CSS to Affirm logo on checkout page
+* Update - Dashboard link redirect to correct environment
+* Tweak  - WC tested up to 3.9
+
 2019-08-06 - version 1.1.8
 * Tweak - WC tested up to 3.7.
 
