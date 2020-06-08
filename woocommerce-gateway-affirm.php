@@ -5,7 +5,7 @@
  * Description: Receive payments using the Affirm payments provider.
  * Author: WooCommerce
  * Author URI: https://woocommerce.com/
- * Version: 1.1.9
+ * Version: 1.1.10
  * WC tested up to: 3.9
  * WC requires at least: 2.6
  * Woo: 1474706:b271ae89b8b86c34020f58af2f4cbc81
@@ -50,13 +50,17 @@ if (! function_exists('woothemes_queue_update') ) {
  * Constants
  */
 
-define( 'WC_GATEWAY_AFFIRM_VERSION', '1.1.9' );
+define('WC_GATEWAY_AFFIRM_VERSION', '1.1.9');
 
 
 /**
  * Plugin updates
  */
-woothemes_queue_update(plugin_basename(__FILE__), 'b271ae89b8b86c34020f58af2f4cbc81', '1474706');
+woothemes_queue_update(
+    plugin_basename(__FILE__), 
+    'b271ae89b8b86c34020f58af2f4cbc81', 
+    '1474706'
+);
 
 /**
  * Class WC_Affirm_Loader
@@ -136,33 +140,97 @@ class WC_Affirm_Loader
     protected function __construct()
     {
 
-        add_filter('plugin_action_links_' . plugin_basename(__FILE__), array( $this, 'pluginActionLinks' ));
-        add_action('plugins_loaded', array( $this, 'initGateway' ), 0);
+        add_filter(
+            'plugin_action_links_' . plugin_basename(__FILE__), 
+            array( $this, 'pluginActionLinks' )
+        );
+        add_action(
+            'plugins_loaded', 
+            array( $this, 'initGateway' ), 
+            0
+        );
 
         // Order actions.
-        add_filter('woocommerce_order_actions', array( $this, 'possiblyAddCaptureToOrderActions' ));
-        add_action('woocommerce_order_action_wc_affirm_capture_charge', array( $this, 'possiblyCaptureCharge' ));
-        add_action('woocommerce_order_status_pending_to_cancelled', array( $this, 'possiblyVoidCharge' ));
-        add_action('woocommerce_order_status_processing_to_cancelled', array( $this, 'possiblyRefundCapturedCharge' ));
-        add_action('woocommerce_order_status_completed_to_cancelled', array( $this, 'possiblyRefundCapturedCharge' ));
+        add_filter(
+            'woocommerce_order_actions', 
+            array( $this, 'possiblyAddCaptureToOrderActions' )
+        );
+        add_action(
+            'woocommerce_order_action_wc_affirm_capture_charge', 
+            array( $this, 'possiblyCaptureCharge' )
+        );
+        add_action(
+            'woocommerce_order_status_pending_to_cancelled', 
+            array( $this, 'possiblyVoidCharge' )
+        );
+        add_action(
+            'woocommerce_order_status_processing_to_cancelled', 
+            array( $this, 'possiblyRefundCapturedCharge' )
+        );
+        add_action(
+            'woocommerce_order_status_completed_to_cancelled', 
+            array( $this, 'possiblyRefundCapturedCharge' )
+        );
 
         // Bulk capture.
-        add_action('admin_footer-edit.php', array( $this, 'possiblyAddCaptureChargeBulkOrderAction' ));
-        add_action('load-edit.php', array( $this, 'possiblyCaptureChargeBulkOrderAction' ));
-        add_action('admin_notices', array( $this, 'customBulkAdminNotices' ));
+        add_action(
+            'admin_footer-edit.php', 
+            array( $this, 'possiblyAddCaptureChargeBulkOrderAction' )
+        );
+        add_action(
+            'load-edit.php', 
+            array( $this, 'possiblyCaptureChargeBulkOrderAction' )
+        );
+        add_action(
+            'admin_notices', 
+            array( $this, 'customBulkAdminNotices' )
+        );
 
         // As low as.
-        add_action('wp_head', array( $this, 'affirmJsRuntimeScript' ));
-        add_action('wp_enqueue_scripts', array( $this, 'possiblyEnqueueScripts' ));
-        add_action('woocommerce_after_shop_loop_item', array( $this, 'woocommerceAfterShopLoopItem' ));
+        add_action(
+            'wp_head', 
+            array( $this, 'affirmJsRuntimeScript' )
+        );
+        add_action(
+            'wp_enqueue_scripts', 
+            array( $this, 'possiblyEnqueueScripts' )
+        );
+        add_action(
+            'woocommerce_after_shop_loop_item', 
+            array( $this, 'woocommerceAfterShopLoopItem' )
+        );
         // Uses priority 15 to get the as-low-as to appear after the product price.
-        add_action('woocommerce_single_product_summary', array( $this, 'woocommerceSingleProductSummary' ), 15);
-        add_action('woocommerce_cart_totals_after_order_total', array( $this, 'woocommerceCartTotalsAfterOrderTotal' ));
-        add_action('woocommerce_thankyou', array($this, 'wcAffirmCheckoutAnalytics'));
+        add_action(
+            'woocommerce_single_product_summary', 
+            array( $this, 'woocommerceSingleProductSummary' ), 
+            15
+        );
+        add_action(
+            'woocommerce_cart_totals_after_order_total', 
+            array( $this, 'woocommerceCartTotalsAfterOrderTotal' )
+        );
+        add_action(
+            'woocommerce_thankyou', 
+            array($this, 'wcAffirmCheckoutAnalytics')
+        );
 
         // Checkout Button -  Changes Place Order Button to Continue with Affirm
-        add_action('woocommerce_before_checkout_form', array($this, 'woocommerceOrderButtonText' ));
+        add_action(
+            'woocommerce_review_order_after_submit', 
+            array($this, 'woocommerceOrderButtonText' )
+        );
 
+        // Display merchant order fee
+        add_action(
+            'woocommerce_admin_order_totals_after_total', 
+            array( $this, 'displayOrderFee' )
+        );
+
+        // Register Endpoint    
+        add_action( 
+            'wc_ajax_wc_affirm_start_checkout', 
+            array( $this, 'startCheckout' ) 
+        );
     }
 
 
@@ -180,7 +248,15 @@ class WC_Affirm_Loader
 
         include_once dirname(__FILE__) . '/includes/class-wc-affirm-privacy.php';
         include_once plugin_basename('includes/class-wc-gateway-affirm.php');
-        load_plugin_textdomain('woocommerce-gateway-affirm', false, trailingslashit(dirname(plugin_basename(__FILE__))));
+        load_plugin_textdomain(
+            'woocommerce-gateway-affirm', 
+            false, 
+            trailingslashit(
+                dirname(
+                    plugin_basename(__FILE__)
+                )
+            )
+        );
         add_filter('woocommerce_payment_gateways', array( $this, 'addGateway' ));
     }
 
@@ -205,9 +281,12 @@ class WC_Affirm_Loader
         );
 
         $plugin_links = array(
-        '<a href="' . $settings_url . '">' . __('Settings', 'woocommerce-gateway-affirm') . '</a>',
-        '<a href="http://docs.woothemes.com/document/woocommerce-gateway-affirm/">' . __('Docs', 'woocommerce-gateway-affirm') . '</a>',
-        '<a href="http://support.woothemes.com/">' . __('Support', 'woocommerce-gateway-affirm') . '</a>',
+        '<a href="' . $settings_url . '">' .
+        __('Settings', 'woocommerce-gateway-affirm') . '</a>',
+        '<a href="http://docs.woothemes.com/document/woocommerce-gateway-affirm/">' . 
+        __('Docs', 'woocommerce-gateway-affirm') . '</a>',
+        '<a href="http://support.woothemes.com/">' . 
+        __('Support', 'woocommerce-gateway-affirm') . '</a>',
         );
         return array_merge($plugin_links, $links);
     }
@@ -233,13 +312,20 @@ class WC_Affirm_Loader
      * @param WC_Order $order Order object.
      *
      * @since  1.0.7
-     * @return bool Returns true if the payment method is affirm and the auth flag is set. False otherwise.
+     * @return bool Returns true if the payment 
+     * method is affirm and the 
+     * auth flag is set. False otherwise.
      */
     private function _checkPaymentMethodAndAuthFlag( $order )
     {
-        $payment_method = version_compare(WC_VERSION, '3.0', '<') ? $order->payment_method : $order->get_payment_method();
+        $payment_method = version_compare(
+            WC_VERSION, '3.0', '<'
+        ) ? 
+        $order->payment_method : 
+        $order->get_payment_method();
 
-        return 'affirm' === $payment_method && $this->getGateway()->issetOrderAuthOnlyFlag($order);
+        return 'affirm' === $payment_method && 
+        $this->getGateway()->issetOrderAuthOnlyFlag($order);
     }
 
     /**
@@ -264,14 +350,19 @@ class WC_Affirm_Loader
             return $actions;
         }
 
-        $actions['wc_affirm_capture_charge'] = __('Capture Charge', 'woocommerce-gateway-affirm');
+        $actions['wc_affirm_capture_charge'] = __(
+            'Capture Charge', 
+            'woocommerce-gateway-affirm'
+        );
 
         return $actions;
     }
 
 
     /**
-     * Possibly capture the charge.  Used by woocommerce_order_action_wc_affirm_capture_charge hook / possiblyAddCaptureToOrderActions
+     * Possibly capture the charge.  
+     * Used by woocommerce_order_action_wc_affirm_capture_charge hook / 
+     * possiblyAddCaptureToOrderActions
      *
      * @param object $order order
      * 
@@ -331,9 +422,18 @@ class WC_Affirm_Loader
             return false;
         }
 
-        $order_id = version_compare(WC_VERSION, '3.0', '<') ? $order->id() : $order->get_id();
+        $order_id = version_compare(WC_VERSION, '3.0', '<') ? 
+            $order->id() : 
+            $order->get_id();
 
-        return $this->getGateway()->process_refund($order_id, null, __('Order is cancelled', 'woocommerce-gateway-affirm'));
+        return $this->getGateway()->process_refund(
+            $order_id, 
+            null, 
+            __(
+                'Order is cancelled', 
+                'woocommerce-gateway-affirm'
+            )
+        );
     }
 
     /**
@@ -354,9 +454,19 @@ class WC_Affirm_Loader
             ?>
                 <script type="text/javascript">
                     jQuery( document ).ready( function ( $ ) {
-                        if ( 0 == $( 'select[name^=action] option[value=wc_capture_charge_affirm]' ).size() ) {
+                        if ( 0 == 
+                        $( 'select[name^=action] option[value=wc_capture_charge_affirm]' )
+                        .size() ) {
                             $( 'select[name^=action]' ).append(
-                                $( '<option>' ).val( 'wc_capture_charge_affirm' ).text( '<?php esc_attr_e('Capture Charge (Affirm)', 'woocommerce-gateway-affirm'); ?>' )
+                                $( '<option>' ).val( 
+                                    'wc_capture_charge_affirm' )
+                                    .text( 
+                                        '<?php esc_attr_e(
+                                            'Capture Charge (Affirm)', 
+                                            'woocommerce-gateway-affirm'
+                                        ); 
+                                            ?>' 
+                                    )
                             );
                         }
                     });
@@ -379,7 +489,9 @@ class WC_Affirm_Loader
 
         if ('shop_order' == $typenow ) {
 
-            // Get the action (I'm not entirely happy with using this internal WP function, but this is the only way presently)
+            // Get the action (I'm not entirely happy with 
+            // using this internal WP function, 
+            // but this is the only way presently)
             // See https://core.trac.wordpress.org/ticket/16031
             $wp_list_table = _get_list_table('WP_Posts_List_Table');
             $action        = $wp_list_table->current_action();
@@ -397,7 +509,15 @@ class WC_Affirm_Loader
                 $order_ids = array_map('absint', $_REQUEST['post']);
             }
 
-            $sendback = remove_query_arg(array( 'captured', 'untrashed', 'deleted', 'ids' ), wp_get_referer());
+            $sendback = remove_query_arg(
+                array( 
+                    'captured', 
+                    'untrashed', 
+                    'deleted', 
+                    'ids' 
+                ), 
+                wp_get_referer()
+            );
             if (! $sendback ) {
                 $sendback = admin_url("edit.php?post_type=$post_type");
             }
@@ -419,8 +539,25 @@ class WC_Affirm_Loader
                 }
             }
 
-            $sendback = add_query_arg(array( 'captured' => $capture_count ), $sendback);
-            $sendback = remove_query_arg(array( 'action', 'action2', 'tags_input', 'post_author', 'comment_status', 'ping_status', '_status', 'post', 'bulk_edit', 'post_view' ), $sendback);
+            $sendback = add_query_arg(
+                array( 'captured' => $capture_count ), 
+                $sendback
+            );
+            $sendback = remove_query_arg(
+                array( 
+                    'action', 
+                    'action2', 
+                    'tags_input', 
+                    'post_author', 
+                    'comment_status', 
+                    'ping_status', 
+                    '_status', 
+                    'post', 
+                    'bulk_edit', 
+                    'post_view' 
+                ), 
+                $sendback
+            );
             wp_redirect($sendback);
             exit();
 
@@ -439,16 +576,26 @@ class WC_Affirm_Loader
     {
         global $post_type, $pagenow;
 
-        if ('edit.php' === $pagenow && 'shop_order' === $post_type && isset($_REQUEST['captured']) ) {
-
+        if ('edit.php' === $pagenow  
+            && 'shop_order' === $post_type  
+            && isset($_REQUEST['captured']) 
+        ) {
             $capture_count = (int) $_REQUEST['captured'];
 
             if (0 >= $capture_count ) {
-                $message = __('Affirm: No charges were able to be captured.', 'woocommerce-gateway-affirm');
+                $message = __(
+                    'Affirm: No charges were able to be captured.', 
+                    'woocommerce-gateway-affirm'
+                );
             } else {
                 $message = sprintf(
                     /* translators: 1: number of charge(s) captured */
-                    _n('Affirm: %s charge was captured.', 'Affirm: %s charges were captured.', $_REQUEST['captured'], 'woocommerce-gateway-affirm'),
+                    _n(
+                        'Affirm: %s charge was captured.', 
+                        'Affirm: %s charges were captured.', 
+                        $_REQUEST['captured'], 
+                        'woocommerce-gateway-affirm'
+                    ),
                     number_format_i18n($_REQUEST['captured'])
                 );
             }
@@ -509,8 +656,16 @@ class WC_Affirm_Loader
 
         $options = apply_filters('wc_gateway_affirm_as_low_as_data', $options);
 
-        wp_register_script('affirm_as_low_as', plugins_url('assets/js/affirm-as-low-as.js', __FILE__), array( 'jquery' ));
-        wp_localize_script('affirm_as_low_as', 'affirmOptions', $options);
+        wp_register_script(
+            'affirm_as_low_as', 
+            plugins_url('assets/js/affirm-as-low-as.js', __FILE__), 
+            array( 'jquery' )
+        );
+        wp_localize_script(
+            'affirm_as_low_as', 
+            'affirmOptions', 
+            $options
+        );
         wp_enqueue_script('affirm_as_low_as');
     }
 
@@ -529,7 +684,15 @@ class WC_Affirm_Loader
 
             // Only do this for simple, variable, and composite products. This
             // gateway does not (yet) support subscriptions.
-            $supported_types = apply_filters('wc_gateway_affirm_supported_product_types', array( 'simple', 'variable', 'grouped', 'composite' ));
+            $supported_types = apply_filters(
+                'wc_gateway_affirm_supported_product_types', 
+                array( 
+                    'simple', 
+                    'variable', 
+                    'grouped', 
+                    'composite' 
+                )
+            );
 
             if (!$product->is_type($supported_types) ) {
                 return;
@@ -542,7 +705,10 @@ class WC_Affirm_Loader
             }
 
 
-            $this->renderAffirmMonthlyPaymentMessaging(floatval($price * 100), 'product');
+            $this->renderAffirmMonthlyPaymentMessaging(
+                floatval($price * 100), 
+                'product'
+            );
         }
     }
 
@@ -555,7 +721,14 @@ class WC_Affirm_Loader
      */
     protected function getGroupedProductPrice( $product )
     {
-        $children = array_filter(array_map('wc_get_product', $product->get_children()), array( $this, 'filterVisibleGroupChild' ));
+        $children = array_filter(
+            array_map(
+                'wc_get_product', 
+                $product->get_children()
+            ), array( 
+                $this, 'filterVisibleGroupChild' 
+            )
+        );
         uasort($children, array( $this, 'orderGroupedProductByPrice' ));
 
         return reset($children)->get_price();
@@ -573,7 +746,17 @@ class WC_Affirm_Loader
      */
     public function filterVisibleGroupChild( $product )
     {
-        return $product && is_a($product, 'WC_Product') && ( 'publish' === $product->get_status() || current_user_can('edit_product', $product->get_id()) );
+        return $product && 
+            is_a(
+                $product, 
+                'WC_Product'
+            ) && 
+            ( 'publish' === $product->get_status() || 
+            current_user_can(
+                'edit_product', 
+                $product->get_id()
+            ) 
+            );
     }
 
     /**
@@ -602,7 +785,9 @@ class WC_Affirm_Loader
      */
     public function woocommerceCartTotalsAfterOrderTotal()
     {
-        if (class_exists('WC_Subscriptions_Cart') && WC_Subscriptions_Cart::cart_contains_subscription() ) {
+        if (class_exists('WC_Subscriptions_Cart')  
+            && WC_Subscriptions_Cart::cart_contains_subscription() 
+        ) {
             return;
         }
 
@@ -611,7 +796,10 @@ class WC_Affirm_Loader
             <th></th>
             <td>
         <?php if ($this->getGateway()->cartALA ) {
-            $this->renderAffirmMonthlyPaymentMessaging(floatval(WC()->cart->total) * 100, 'cart');
+            $this->renderAffirmMonthlyPaymentMessaging(
+                floatval(WC()->cart->total) * 100, 
+                'cart'
+            );
         }
         ?>
             </td>
@@ -628,8 +816,9 @@ class WC_Affirm_Loader
      * @since  1.1.0
      * @return void
      */
-    protected function renderAffirmMonthlyPaymentMessaging( $amount, $affirmPageType )
-    {
+    protected function renderAffirmMonthlyPaymentMessaging( 
+        $amount, $affirmPageType 
+    ) {
         $attrs = array(
         'amount'         => $amount,
         'promo-id'       => $this->getGateway()->promo_id,
@@ -646,11 +835,17 @@ class WC_Affirm_Loader
             $data_attrs .= sprintf(' data-%s="%s"', $attr, esc_attr($val));
         }
 
-        $affirm_message = '<p id="learn-more" class="affirm-as-low-as"' . $data_attrs . '></p>';
+        $affirm_message = '<p id="learn-more" class="affirm-as-low-as"' . 
+        $data_attrs . '></p>';
 
-        if (($amount > $this->getGateway()->min*100) && ($amount < $this->getGateway()->max*100) && ('cart' === $attrs['page-type'])) {
+        if (($amount > $this->getGateway()->min*100)  
+            && ($amount < $this->getGateway()->max*100) 
+            && ('cart' === $attrs['page-type'])
+        ) {
             echo $affirm_message;
-        } elseif ('product' == $attrs['page-type'] || 'category' == $attrs['page-type']) {
+        } elseif ('product' == $attrs['page-type']  
+            || 'category' == $attrs['page-type']
+        ) {
             echo $affirm_message;
         }
     }
@@ -680,17 +875,16 @@ class WC_Affirm_Loader
             $script_url = 'https://cdn1.affirm.com/js/v2/affirm.js';
         }
 
-        ?>
-        <script>
-            if ( 'undefined' === typeof _affirm_config ) {
-                var _affirm_config = {
-                    public_api_key: "<?php echo esc_js($public_key); ?>",
-                    script: "<?php echo esc_js($script_url); ?>"
-                };
-                (function(l,g,m,e,a,f,b){var d,c=l[m]||{},h=document.createElement(f),n=document.getElementsByTagName(f)[0],k=function(a,b,c){return function(){a[b]._.push([c,arguments])}};c[e]=k(c,e,"set");d=c[e];c[a]={};c[a]._=[];d._=[];c[a][b]=k(c,a,b);a=0;for(b="set add save post open empty reset on off trigger ready setProduct".split(" ");a<b.length;a++)d[b[a]]=k(c,e,b[a]);a=0;for(b=["get","token","url","items"];a<b.length;a++)d[b[a]]=function(){};h.async=!0;h.src=g[f];n.parentNode.insertBefore(h,n);delete g[f];d(g);l[m]=c})(window,_affirm_config,"affirm","checkout","ui","script","ready");
-            }
-        </script>
-        <?php
+        wp_register_script(
+            'affirm_js', 
+            plugins_url(
+                'assets/js/affirmjs.js', 
+                __FILE__
+            ) 
+        );
+        wp_localize_script('affirm_js', 'url', $script_url);
+        wp_localize_script('affirm_js', 'pubkey', $public_key);
+        wp_enqueue_script('affirm_js');
 
     }
 
@@ -751,6 +945,7 @@ class WC_Affirm_Loader
                     <?php echo json_encode($items_data)?>
                 );
             });
+
         </script>
         <?php
     }
@@ -768,7 +963,15 @@ class WC_Affirm_Loader
 
             // Only do this for simple, variable, and composite products. This
             // gateway does not (yet) support subscriptions.
-            $supported_types = apply_filters('wc_gateway_affirm_supported_product_types', array( 'simple', 'variable', 'grouped', 'composite' ));
+            $supported_types = apply_filters(
+                'wc_gateway_affirm_supported_product_types', 
+                array( 
+                    'simple', 
+                    'variable', 
+                    'grouped', 
+                    'composite' 
+                )
+            );
 
             if (!$product->is_type($supported_types) ) {
                 return;
@@ -780,21 +983,131 @@ class WC_Affirm_Loader
                 $price = $this->getGroupedProductPrice($product);
             }
 
-            $this->renderAffirmMonthlyPaymentMessaging(floatval($price * 100), 'category');
+            $this->renderAffirmMonthlyPaymentMessaging(
+                floatval($price * 100), 
+                'category'
+            );
         }
     }
 
     /**
-     * Update Checkout button verbiage
+     * Replace WooCommerce place order button with Continue to Affirm button
      *
      * @return string
      */
     public function woocommerceOrderButtonText()
     {
-        wp_register_script('affirm_checkout_button', plugins_url('assets/js/affirm-checkout-button.js', __FILE__), array( 'jquery' ));
+        wp_register_script(
+            'affirm_checkout_button', 
+            plugins_url(
+                'assets/js/affirm-checkout-button.js', 
+                __FILE__
+            ), 
+            array( 
+                'jquery' 
+            )
+        );
         wp_enqueue_script('affirm_checkout_button');
-        wp_register_style('affirm_css', plugins_url('assets/css/affirm-checkout.css', __FILE__));
+        wp_localize_script(
+            'affirm_checkout_button', 
+            'affirm_checkout_url', 
+            WC_AJAX::get_endpoint('wc_affirm_start_checkout')
+        );
+        wp_register_style(
+            'affirm_css', 
+            plugins_url(
+                'assets/css/affirm-checkout.css', 
+                __FILE__
+            )
+        );
         wp_enqueue_style('affirm_css');
+
+        echo "<button class='button alt' type='button' id='affirm-place-order' onclick=affirmClick()>".
+            "Continue with Affirm</button>";
+        
+    }
+
+    /**
+     * Displays the Affirm fee
+     *
+     * @param int $order_id The ID of the order.
+     *
+     * @return string HTML
+     */
+    public function displayOrderFee($order_id)
+    {
+        if (! $this->getGateway()->show_fee ) {
+            return;
+        }
+
+        if (! empty($this->getGateway()->getOrderMeta($order_id, 'fee_amount')) ) {
+            $fee_amount = $this->getGateway()->getOrderMeta($order_id, 'fee_amount');
+        } else {
+            return;
+        }
+        ?>
+
+        <tr>
+            <td class="label affirm-fee">
+                <?php echo wc_help_tip(
+                    'This is the portion of the'. 
+                    'captured amount that represents'. 
+                    'the mertchant fee for the transaction.'
+                ); ?>
+                Affirm Fee:
+            </td>
+            <td width="1%"></td>
+            <td class="total">
+                -&nbsp;<?php echo wc_price(0.01 * $fee_amount); ?>
+            </td>
+        </tr>
+        <?php
+    }
+
+    /**
+     * Starts checkout when Continue to Affirm is clicked
+     *
+     * @since  1.0.0
+     * @return void
+     */
+    public function startCheckout( )
+    {
+        add_action(
+            'woocommerce_after_checkout_validation', 
+            array($this, 'checkoutFormValidation'), 
+            10,
+            2 
+        );
+        WC()->checkout->process_checkout();
+    }
+
+    /**
+     * Form valdiation
+     * Returns true if there are no errors
+     * and false if there are error on the form
+     * 
+     * @param data   $data   object
+     * @param errors $errors object
+     *
+     * @since  1.0.0
+     * @return string form errors
+     */
+    public function checkoutFormValidation( $data , $errors)
+    {
+        $error_messages = $errors->get_error_messages();
+        if (empty($error_messages) ) {
+            include_once 'includes/class-wc-get-checkout-object.php';
+            $checkoutObject = new Affirm_Checkout_Object();
+            $checkoutData =  $checkoutObject->getCheckoutObject();
+            wp_send_json_success(
+                array('valid' => true , 'checkoutObject' => $checkoutData)
+            );
+        } else {
+            wp_send_json_error( 
+                array( 'messages' => $error_messages ) 
+            );   
+        }
+        exit;
     }
 
 }

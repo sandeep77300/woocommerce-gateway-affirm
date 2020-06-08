@@ -2,7 +2,9 @@
 /**
  * * WC_Gateway_Affirm_Charge_API
  *
- * WC_Gateway_Affirm_Charge_API connects to the affirm API to do all charge actions ie capture, return void, auth
+ * WC_Gateway_Affirm_Charge_API connects to the 
+ * affirm API to do all charge actions 
+ * ie capture, return void, auth
  *
  * @category Payment_Gateways
  * @class    WC_Gateway_Affirm
@@ -18,7 +20,9 @@ if (! defined('ABSPATH') ) {
 /**
  * * WC_Gateway_Affirm_Charge_API
  *
- * WC_Gateway_Affirm_Charge_API connects to the affirm API to do all charge actions ie capture, return void, auth
+ * WC_Gateway_Affirm_Charge_API connects to the 
+ * affirm API to do all charge actions ie capture, 
+ * return void, auth
  *
  * @category Payment_Gateways
  * @class    WC_Gateway_Affirm
@@ -76,7 +80,10 @@ class WC_Gateway_Affirm_Charge_API
 
         $response = $this->_postAuthenticatedJsonRequest(
             'api/v2/charges',
-            array( 'checkout_token' => $checkout_token )
+            array( 
+                'checkout_token' => $checkout_token , 
+                'order_id' => $this->order_id 
+            )
         );
 
         if (is_wp_error($response) ) {
@@ -86,16 +93,37 @@ class WC_Gateway_Affirm_Charge_API
         // Check HTTP status.
         $http_status = intval(wp_remote_retrieve_response_code($response));
         if (in_array($http_status, array( 400, 401 )) ) {
-            return new WP_Error('authorization_failed', __('There was an issue authorizing your Affirm loan. Please check out again or use a different payment method.', 'woocommerce-gateway-affirm'));
+            return new WP_Error(
+                'authorization_failed', 
+                __(
+                    'There was an issue authorizing your Affirm loan. '.
+                    'Please check out again or use a different payment method.', 
+                    'woocommerce-gateway-affirm'
+                )
+            );
         }
 
         if (! array_key_exists('body', $response) ) {
-            return new WP_Error('unexpected_response', __('Unexpected response from Affirm. Missing response body.', 'woocommerce-gateway-affirm'));
+            return new WP_Error(
+                'unexpected_response', 
+                __(
+                    'Unexpected response from Affirm. '.
+                    'Missing response body.', 
+                    'woocommerce-gateway-affirm'
+                )
+            );
         }
 
         $body = json_decode($response['body']);
         if (! property_exists($body, 'id') ) {
-            return new WP_Error('unexpected_response', __('Unexpected response from Affirm. Missing id in response body.', 'woocommerce-gateway-affirm'));
+            return new WP_Error(
+                'unexpected_response', 
+                __(
+                    'Unexpected response from Affirm. '.
+                    'Missing id in response body.', 
+                    'woocommerce-gateway-affirm'
+                )
+            );
         }
 
         // Validate this charge corresponds to the order.
@@ -109,10 +137,16 @@ class WC_Gateway_Affirm_Charge_API
 
                 if (property_exists($metadata, 'order_key') ) {
                     $order     = wc_get_order($this->order_id);
-                    $orderAmount = intval(floor( strval(100 * $order->get_total()) ) );
+                    $orderAmount = intval(floor(strval(100 * $order->get_total())));
                     $authorizedAmount = $details->total;
-                    $order_key = version_compare(WC_VERSION, '3.0', '<') ? $order->order_key : $order->get_order_key();
-                    $validates = ( $metadata->order_key === $order_key );
+                    $order_key = version_compare(WC_VERSION, '3.0', '<') ? 
+                        $order->order_key : 
+                        $order->get_order_key();
+                    $cart_hash = $order->get_cart_hash();
+                    $validates = ( 
+                        $metadata->order_key === $order_key || 
+                        $metadata->order_key === $cart_hash  
+                    );
                     $amount_validation = ($orderAmount === $authorizedAmount );
                 }
             }
@@ -133,7 +167,8 @@ class WC_Gateway_Affirm_Charge_API
      * @param string $charge_id Charge ID
      *
      * @since  1.0.1
-     * @return bool|array Returns false if failed, otherwise array of charge information
+     * @return bool|array Returns false if failed, 
+     * otherwise array of charge information
      */
     public function readCharge( $charge_id )
     {
@@ -141,7 +176,9 @@ class WC_Gateway_Affirm_Charge_API
             return false;
         }
 
-        $response = $this->_getAuthenticatedJsonRequest("api/v2/charges/{$charge_id}");
+        $response = $this->_getAuthenticatedJsonRequest(
+            "api/v2/charges/{$charge_id}"
+        );
         if (is_wp_error($response) ) {
             return false;
         }
@@ -195,7 +232,22 @@ class WC_Gateway_Affirm_Charge_API
             return false;
         }
 
-        return true;
+        if (! array_key_exists('body', $response) ) {
+            return false;
+        }
+
+        $body = json_decode($response['body']);
+
+        $fee_amount = 0;
+
+        if (property_exists($body, 'fee') ) {
+            $fee_amount = intval($body->fee);
+        }
+
+        return array(
+            'fee_amount' => $fee_amount, // in cents
+            'charge_id' => $charge_id,
+        );
     }
 
 
@@ -219,7 +271,9 @@ class WC_Gateway_Affirm_Charge_API
             return false;
         }
 
-        $response = $this->_postAuthenticatedJsonRequest("api/v2/charges/{$charge_id}/void");
+        $response = $this->_postAuthenticatedJsonRequest(
+            "api/v2/charges/{$charge_id}/void"
+        );
 
         if (is_wp_error($response) ) {
             return false;
@@ -275,6 +329,7 @@ class WC_Gateway_Affirm_Charge_API
 
         $refund_amount = 0;
         $transaction_id = '';
+        $fee_refunded = 0;
 
         if (property_exists($body, 'amount') ) {
             $refund_amount = intval($body->amount);
@@ -284,9 +339,14 @@ class WC_Gateway_Affirm_Charge_API
             $id = $body->id;
         }
 
+        if (property_exists($body, 'fee_refunded') ) {
+            $fee_refunded = intval($body->fee_refunded);
+        }
+
         return array(
         'amount' => $refund_amount, // in cents
         'id' => $id,
+        'fee_refunded' => $fee_refunded
         );
     }
 
@@ -314,7 +374,11 @@ class WC_Gateway_Affirm_Charge_API
         $options = array(
         'method' => 'POST',
         'headers' => array(
-        'Authorization' => 'Basic ' . base64_encode($this->gateway->public_key . ':' . $this->gateway->private_key),
+        'Authorization' => 'Basic ' . base64_encode(
+            $this->gateway->public_key . 
+            ':' . 
+            $this->gateway->private_key
+        ),
         'Content-Type' => 'application/json',
         ),
         );
@@ -346,7 +410,11 @@ class WC_Gateway_Affirm_Charge_API
 
         $options = array(
         'headers' => array(
-        'Authorization' => 'Basic ' . base64_encode($this->gateway->public_key . ':' . $this->gateway->private_key),
+        'Authorization' => 'Basic ' . base64_encode(
+            $this->gateway->public_key . 
+            ':' . 
+            $this->gateway->private_key
+        ),
         'Content-Type' => 'application/json',
         ),
         );

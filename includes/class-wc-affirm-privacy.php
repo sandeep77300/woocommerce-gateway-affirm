@@ -33,9 +33,23 @@ class WC_Affirm_Privacy extends WC_Abstract_Privacy
     {
         parent::__construct(__('Affirm', 'woocommerce-gateway-affirm'));
 
-        $this->add_exporter('woocommerce-gateway-affirm-order-data', __('WooCommerce Affirm Order Data', 'woocommerce-gateway-affirm'), array( $this, 'orderDataExporter' ));
+        $this->add_exporter(
+            'woocommerce-gateway-affirm-order-data', 
+            __(
+                'WooCommerce Affirm Order Data', 
+                'woocommerce-gateway-affirm'
+            ), 
+            array( $this, 'orderDataExporter' )
+        );
 
-        $this->add_eraser('woocommerce-gateway-affirm-order-data', __('WooCommerce Affirm Data', 'woocommerce-gateway-affirm'), array( $this, 'orderDataEraser' ));
+        $this->add_eraser(
+            'woocommerce-gateway-affirm-order-data', 
+            __(
+                'WooCommerce Affirm Data', 
+                'woocommerce-gateway-affirm'
+            ), 
+            array( $this, 'orderDataEraser' )
+        );
     }
 
     /**
@@ -48,7 +62,12 @@ class WC_Affirm_Privacy extends WC_Abstract_Privacy
      */
     protected function getOrders( $email_address, $page )
     {
-        $user = get_user_by('email', $email_address); // Check if user has an ID in the DB to load stored personal data.
+        $user = get_user_by(
+            'email', 
+            $email_address
+        ); 
+        // Check if user has an ID 
+        //in the DB to load stored personal data.
 
         $order_query    = array(
         'payment_method' => array( 'affirm' ),
@@ -72,7 +91,18 @@ class WC_Affirm_Privacy extends WC_Abstract_Privacy
      */
     public function get_privacy_message()
     {
-        return wpautop(sprintf(__('By using this extension, you may be storing personal data or sharing data with an external service. <a href="%s" target="_blank">Learn more about how this works, including what you may want to include in your privacy policy.</a>', 'woocommerce-gateway-affirm'), 'https://docs.woocommerce.com/document/privacy-payments/#woocommerce-gateway-affirm'));
+        return wpautop(
+            sprintf(
+                __(
+                    'By using this extension, '.
+                    'you may be storing personal data or sharing data with an external service. '.
+                    '<a href="%s" target="_blank">Learn more about how this works, '.
+                    'including what you may want to include in your privacy policy.</a>', 
+                    'woocommerce-gateway-affirm'
+                ), 
+                'https://docs.woocommerce.com/document/privacy-payments/#woocommerce-gateway-affirm'
+            )
+        );
     }
 
     /**
@@ -95,15 +125,19 @@ class WC_Affirm_Privacy extends WC_Abstract_Privacy
         if (0 < count($orders) ) {
             foreach ( $orders as $order ) {
                 $data_to_export[] = array(
-                 'group_id'    => 'woocommerce_orders',
-                 'group_label' => __('Orders', 'woocommerce-gateway-affirm'),
-                 'item_id'     => 'order-' . $order->get_id(),
-                 'data'        => array(
-                  array(
-                'name'  => __('Affirm charge ID', 'woocommerce-gateway-affirm'),
-                'value' => get_post_meta($order->get_id(), '_wc_gateway_affirm_charge_id', true),
-                  ),
-                 ),
+                    'group_id'    => 'woocommerce_orders',
+                    'group_label' => __('Orders', 'woocommerce-gateway-affirm'),
+                    'item_id'     => 'order-' . $order->get_id(),
+                    'data'        => array(
+                        array(
+                            'name'  => __('Affirm charge ID', 'woocommerce-gateway-affirm'),
+                            'value' => get_post_meta(
+                                $order->get_id(), 
+                                '_wc_gateway_affirm_charge_id', 
+                                true
+                            ),
+                        ),
+                    ),
                 );
             }
 
@@ -170,7 +204,16 @@ class WC_Affirm_Privacy extends WC_Abstract_Privacy
 
         delete_post_meta($order_id, '_wc_gateway_affirm_charge_id');
 
-        return array( true, false, array( __('Affirm personal data erased.', 'woocommerce-gateway-affirm') ) );
+        return array( 
+            true, 
+            false, 
+            array( 
+                __(
+                    'Affirm personal data erased.', 
+                    'woocommerce-gateway-affirm'
+                ) 
+            ) 
+        );
     }
 }
 

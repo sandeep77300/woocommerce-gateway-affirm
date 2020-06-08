@@ -31,6 +31,7 @@ class WC_Gateway_Affirm extends WC_Payment_Gateway
      */
     const CANCEL_TO_CART = 'cancel_to_cart';
     const CANCEL_TO_PAYMENT = 'cancel_to_payment';
+    const CANCEL_TO_CHECKOUT = 'cancel_to_checkout';
 
     /**
      * Constructor
@@ -44,7 +45,11 @@ class WC_Gateway_Affirm extends WC_Payment_Gateway
         $this->method_title = __('Affirm', 'woocommerce-gateway-affirm');
         $this->method_description = sprintf(
             /* translators: 1: html starting code 2: html end code */
-            __('Works by sending the customer to %1$sAffirm%2$s to enter their payment information.', 'woocommerce-gateway-affirm'),
+            __(
+                'Works by sending the customer to %1$sAffirm%2$s '.
+                'to enter their payment information.', 
+                'woocommerce-gateway-affirm'
+            ),
             '<a href="http://affirm.com/">', '</a>'
         );
         $this->supports = array(
@@ -55,93 +60,167 @@ class WC_Gateway_Affirm extends WC_Payment_Gateway
         $this->initFormFields();
         $this->init_settings();
 
-        $this->public_key     = $this->get_option('public_key');
-        $this->private_key    = $this->get_option('private_key');
-        $this->debug          = $this->get_option('debug') === 'yes';
-        $this->title          = $this->get_option('title');
-        $this->description    = $this->get_option('description');
-        $this->testmode       = $this->get_option('testmode') === 'yes';
-        $this->auth_only_mode = $this->get_option('transaction_mode') === self::TRANSACTION_MODE_AUTH_ONLY ? true : false;
-        $this->checkout_mode  = $this->get_option('checkout_mode');
-        $this->cancel_url     = $this->get_option('cancel_url');
-        $this->promo_id       = $this->get_option('promo_id');
-        $this->affirm_color   = $this->get_option('affirm_color', 'blue');
-        $this->show_learnmore = $this->get_option('show_learnmore', 'yes') === 'yes';
-        $this->enhanced_analytics = $this->get_option('enhanced_analytics', 'yes') === 'yes';
-        $this->categoryALA = $this->get_option('categoryALA', 'yes') === 'yes';
-        $this->productALA = $this->get_option('productALA', 'yes') === 'yes';
-        $this->cartALA = $this->get_option('cartALA', 'yes') === 'yes';
-        $this->min     = $this->get_option('min');
-        $this->max     = $this->get_option('max');
+        $this->public_key         = $this->get_option('public_key');
+        $this->private_key        = $this->get_option('private_key');
+        $this->debug              = $this->get_option('debug') === 'yes';
+        $this->title              = $this->get_option('title');
+        $this->description        = $this->get_option('description');
+        $this->testmode           = $this->get_option('testmode') === 'yes';
+        $this->auth_only_mode     = $this->get_option(
+            'transaction_mode'
+        ) === self::TRANSACTION_MODE_AUTH_ONLY ? 
+            true : 
+            false;
+        $this->checkout_mode      = $this->get_option('checkout_mode');
+        $this->cancel_url         = $this->get_option('cancel_url');
+        $this->promo_id           = $this->get_option('promo_id');
+        $this->affirm_color       = $this->get_option('affirm_color', 'blue');
+        $this->show_learnmore     = $this->get_option(
+            'show_learnmore', 
+            'yes'
+        ) === 'yes';
+        $this->enhanced_analytics = $this->get_option(
+            'enhanced_analytics', 
+            'yes'
+        ) === 'yes';
+        $this->show_fee           = $this->get_option('show_fee', 'yes') === 'yes';
+        $this->categoryALA        = $this->get_option(
+            'categoryALA', 
+            'yes'
+        ) === 'yes';
+        $this->productALA         = $this->get_option('productALA', 'yes') === 'yes';
+        $this->cartALA            = $this->get_option('cartALA', 'yes') === 'yes';
+        $this->min                = $this->get_option('min');
+        $this->max                = $this->get_option('max');
 
-        add_action('woocommerce_update_options_payment_gateways_' . $this->id, array( $this, 'process_admin_options' ));
-        add_action('admin_notices', array( $this, 'adminNotices' ));
-        add_action('admin_enqueue_scripts', array( $this, 'adminEnqueueScripts' ));
+        add_action(
+            'woocommerce_update_options_payment_gateways_' . $this->id, 
+            array( $this, 'process_admin_options' )
+        );
+        add_action(
+            'admin_notices', 
+            array( $this, 'adminNotices' )
+        );
+        add_action(
+            'admin_enqueue_scripts', 
+            array( $this, 'adminEnqueueScripts' )
+        );
 
         if (! $this->isValidForUse() ) {
             return;
         }
 
-        add_action('woocommerce_api_' . strtolower(get_class($this)), array( $this, 'handleWcApi' ));
-        add_action('woocommerce_review_order_before_payment', array( $this, 'reviewOrderBeforePayment' ));
-        add_action('wp_enqueue_scripts', array( $this, 'enqueueScripts' ));
+        add_action(
+            'woocommerce_api_' . strtolower(get_class($this)), 
+            array( $this, 'handleWcApi' )
+        );
+        add_action(
+            'woocommerce_review_order_before_payment', 
+            array( $this, 'reviewOrderBeforePayment' )
+        );
+        add_action(
+            'wp_enqueue_scripts', 
+            array( $this, 'enqueueScripts' )
+        );
 
     }
 
     /**
      * Check for the Affirm POST back.
      *
-     * If the customer completes signing up for the loan, Affirm has the client browser POST to
+     * If the customer completes signing up for the loan, 
+     * Affirm has the client browser POST to
      * https://{$domain}/wc-api/WC_Gateway_Affirm?action=complete_checkout
      *
-     * The POST includes the checkout_token from affirm that the server can then use to complete
-     * capturing the payment. By doing it this way, it "fits" with the Affirm way of working.
+     * The POST includes the checkout_token 
+     * from affirm that the server can then use to complete
+     * capturing the payment. 
+     * By doing it this way, 
+     * it "fits" with the Affirm way of working.
      *
+     * @param boolean $preOrder preOrder
+     * 
      * @since  1.0.0
      * @return void
      */
-    public function handleWcApi()
+    public function handleWcApi( $preOrder = false)
     {
 
         try {
-            $action = isset($_GET['action']) ? sanitize_text_field($_GET['action']) : '';
-            if ('complete_checkout' !== $action ) {
-                throw new Exception(
-                    __('Sorry, but that endpoint is not supported.', 'woocommerce-gateway-affirm')
-                );
+            $action = isset($_GET['action']) ? 
+                sanitize_text_field($_GET['action']) : 
+                '';
+            
+            if (!$preOrder) {
+                if ('complete_checkout' !== $action ) {
+                    throw new Exception(
+                        __(
+                            'Sorry, but that endpoint is not supported.', 
+                            'woocommerce-gateway-affirm'
+                        )
+                    );
+                }
             }
 
-            $checkout_token = isset($_POST['checkout_token']) ? wc_clean($_POST['checkout_token']) : '';
+            $checkout_token = isset($_POST['checkout_token']) ? 
+                wc_clean($_POST['checkout_token']) : '';
             if (empty($checkout_token) ) {
                 throw new Exception(
-                    __('Checkout failed. No token was provided by Affirm. You may wish to try a different payment method.', 'woocommerce-gateway-affirm')
+                    __(
+                        'Checkout failed. No token was provided by Affirm. '.
+                        'You may wish to try a different payment method.', 
+                        'woocommerce-gateway-affirm'
+                    )
                 );
             }
 
             // In case there's an active request that still using session after
             // udpated to 1.0.4. Session fallback can be removed after two releases.
-            $order_id = ( ! empty($_GET['order_id']) ) ? absint($_GET['order_id']) : WC()->session->order_awaiting_payment;
+            $order_id = ( ! empty($_GET['order_id']) ) ? 
+                absint($_GET['order_id']) : 
+                WC()->session->order_awaiting_payment;
 
             $order = wc_get_order($order_id);
             if (! $order ) {
                 throw new Exception(
-                    __('Sorry, but that order is not available. Please try checking out again.', 'woocommerce-gateway-affirm')
+                    __(
+                        'Sorry, but that order is not available. '.
+                        'Please try checking out again.', 
+                        'woocommerce-gateway-affirm'
+                    )
                 );
             }
 
-            // TODO: After two releass from 1.0.4, makes order_key a required field.
-            if (! empty($_GET['order_key']) && ! $order->key_is_valid($_GET['order_key']) ) {
+            // TODO: After two releass from 1.0.4, 
+            //makes order_key a required field.
+            if (! empty($_GET['order_key'])  
+                && ! $order->key_is_valid($_GET['order_key']) 
+            ) {
                 throw new Exception(
-                    __('Sorry, but that order is not available. Please try checking out again.', 'woocommerce-gateway-affirm')
+                    __(
+                        'Sorry, but that order is not available. '.
+                        'Please try checking out again.', 
+                        'woocommerce-gateway-affirm'
+                    )
                 );
             }
 
-            $this->log(__FUNCTION__, "Processing payment for order {$order_id} with checkout token {$checkout_token}.");
+            $this->log(
+                __FUNCTION__, 
+                "Processing payment for order {$order_id} ".
+                "with checkout token {$checkout_token}."
+            );
 
             if ($this->testmode ) {
-                $this->log(__FUNCTION__, 'Sandbox mode is enabled');
+                $this->log(
+                    __FUNCTION__, 
+                    'Sandbox mode is enabled'
+                );
             } else {
-                $this->log(__FUNCTION__, 'Production mode is enabled');
+                $this->log(
+                    __FUNCTION__, 
+                    'Production mode is enabled'
+                );
             }
 
             // Authenticate the token with Affirm
@@ -150,36 +229,70 @@ class WC_Gateway_Affirm extends WC_Payment_Gateway
 
             $result = $charge_api->requestChargeIdForToken($checkout_token);
             if (is_wp_error($result) ) {
-                $this->log(__FUNCTION__, 'Error in charge authorization: ' . $result->get_error_message());
+                $this->log(
+                    __FUNCTION__, 
+                    'Error in charge authorization: ' . 
+                    $result->get_error_message()
+                );
                 throw new Exception(
-                    __('Checkout failed. Unable to exchange token with Affirm. Please try checking out again later, or try a different payment source.', 'woocommerce-gateway-affirm')
+                    __(
+                        'Checkout failed. '.
+                        'Unable to exchange token with Affirm. '.
+                        'Please try checking out again later, '.
+                        'or try a different payment source.', 
+                        'woocommerce-gateway-affirm'
+                    )
                 );
             }
 
             $validates = $result['validates'];
             $charge_id = $result['charge_id'];
             $amount_validation = $result['amount_validation'];    
-            $this->log(__FUNCTION__, "Received charge id {$charge_id} for order {$order_id}.");
+            $this->log(
+                __FUNCTION__, 
+                "Received charge id {$charge_id} for order {$order_id}."
+            );
 
             if (! $validates ) {
                 $charge_api->voidCharge($charge_id);
                 throw new Exception(
-                    __('Checkout failed. Order mismatch for Affirm token. Please try checking out again later, or try a different payment source.', 'woocommerce-gateway-affirm')
+                    __(
+                        'Checkout failed. '.
+                        'Order mismatch for Affirm token. '.
+                        'Please try checking out again later, '.
+                        'or try a different payment source.', 
+                        'woocommerce-gateway-affirm'
+                    )
                 );
             }
 
             if (! $amount_validation ) {
                 $charge_api->voidCharge($charge_id);
-                $order->update_status( 'cancelled', __( 'Affirm total mismatch.', 'woocommerce-gateway-affirm' ) );
+                $order->update_status(
+                    'cancelled', 
+                    __(
+                        'Affirm total mismatch.', 
+                        'woocommerce-gateway-affirm'
+                    )
+                );
                 throw new Exception(
-                    __('Checkout failed. Your cart amount has changed since starting your Affirm application. Please try again.', 'woocommerce-gateway-affirm')
+                    __(
+                        'Checkout failed. '.
+                        'Your cart amount has changed since '.
+                        'starting your Affirm application. '.
+                        'Please try again.', 
+                        'woocommerce-gateway-affirm'
+                    )
                 );
             }
 
             if (! $order->needs_payment() ) {
                 $charge_api->voidCharge($charge_id);
                 throw new Exception(
-                    __('Checkout failed. This order has already been paid.', 'woocommerce-gateway-affirm')
+                    __(
+                        'Checkout failed. This order has already been paid.', 
+                        'woocommerce-gateway-affirm'
+                    )
                 );
             }
 
@@ -192,26 +305,46 @@ class WC_Gateway_Affirm extends WC_Payment_Gateway
                 $order->add_order_note(
                     sprintf(
                         /* translators: 1: charge amount 2: charge id */
-                        __('Authorized charge of %1$s (charge ID %2$s)', 'woocommerce-gateway-affirm'),
+                        __(
+                            'Authorized charge of %1$s (charge ID %2$s)', 
+                            'woocommerce-gateway-affirm'
+                        ),
                         wc_price($order->get_total()),
                         $charge_id
                     )
                 );
                 $order->set_transaction_id($charge_id);
                 $this->setOrderAuthOnlyFlag($order);
-                $order->update_status( 'on-hold' );
+                $order->update_status('on-hold');
                 $order->save();
-                $this->log(__FUNCTION__, "Info: Auth completed successfully for order id $order_id with token $checkout_token and charge id $charge_id");
+                $this->log(
+                    __FUNCTION__, 
+                    "Info: Auth completed successfully for ".
+                    "order id $order_id with token $checkout_token ".
+                    "and charge id $charge_id"
+                );
 
+                if ($preOrder) {
+                    return $this->get_return_url($order);
+                }
                 wp_safe_redirect($this->get_return_url($order));
                 exit;
             } else {
                 if (! $this->captureCharge($order) ) {
                     throw new Exception(
-                        __('Checkout failed. Unable to capture charge with Affirm. Please try checking out again later, or try a different payment source.', 'woocommerce-gateway-affirm')
+                        __(
+                            'Checkout failed. '.
+                            'Unable to capture charge with Affirm. '.
+                            'Please try checking out again later, '.
+                            'or try a different payment source.', 
+                            'woocommerce-gateway-affirm'
+                        )
                     );
                 }
 
+                if ($preOrder) {
+                    return $this->get_return_url($order);
+                }
                 wp_safe_redirect($this->get_return_url($order));
                 exit;
             }
@@ -220,6 +353,9 @@ class WC_Gateway_Affirm extends WC_Payment_Gateway
                 $this->log(__FUNCTION__, $e->getMessage());
                 wc_add_notice($e->getMessage(), 'error');
                 wp_safe_redirect(WC()->cart->get_checkout_url());
+                if ($preOrder) {
+                    return WC()->cart->get_checkout_url();
+                }
             }
         } // End try().
     }
@@ -239,31 +375,54 @@ class WC_Gateway_Affirm extends WC_Payment_Gateway
 
         $this->clearOrderAuthOnlyFlag($order);
 
-        $order_id = version_compare(WC_VERSION, '3.0', '<') ? $order->id() : $order->get_id();
+        $order_id = version_compare(WC_VERSION, '3.0', '<') ? 
+            $order->id() : 
+            $order->get_id();
 
         include_once 'class-wc-gateway-affirm-charge-api.php';
         $charge_api = new WC_Gateway_Affirm_Charge_API($this, $order_id);
 
         $charge_id = $this->getOrderMeta($order_id, 'charge_id');
 
-        if (! $charge_api->captureCharge($charge_id) ) {
-            $this->log(__FUNCTION__, "Error: Unable to capture charge with Affirm for order {$order_id} using charge id {$charge_id}");
+        $result = $charge_api->captureCharge($charge_id);
+        
+        if (false === $result || is_wp_error($result) ) {
+            $this->log(
+                __FUNCTION__, 
+                "Error: Unable to capture charge with Affirm ".
+                "for order {$order_id} using charge id {$charge_id}"
+            );
             return false;
         }
 
         $amount = $order->get_total();
+        $fee_amount = $result['fee_amount']; 
+        // Affirm provides amounts in cents
+
+        // Save the fee amount on the order
+        $this->updateOrderMeta(
+            $order_id, 
+            'fee_amount', 
+            $fee_amount
+        );
 
         $order->add_order_note(
             sprintf(
                 /* translators: 1: charge price 2: charge id */
-                __('Captured charge of %1$s (charge ID %2$s)', 'woocommerce-gateway-affirm'),
+                __(
+                    'Captured charge of %1$s (charge ID %2$s)', 
+                    'woocommerce-gateway-affirm'
+                ),
                 wc_price($order->get_total()),
                 $charge_id
             )
         );
 
         $order->payment_complete($charge_id);
-        $this->log(__FUNCTION__, "Info: Successfully captured {$amount} for order {$order_id}");
+        $this->log(
+            __FUNCTION__, 
+            "Info: Successfully captured {$amount} for order {$order_id}"
+        );
 
         return true;
     }
@@ -282,7 +441,9 @@ class WC_Gateway_Affirm extends WC_Payment_Gateway
             $order = wc_get_order($order);
         }
 
-        $order_id = version_compare(WC_VERSION, '3.0', '<') ? $order->id() : $order->get_id();
+        $order_id = version_compare(WC_VERSION, '3.0', '<') ? 
+            $order->id() : 
+            $order->get_id();
 
         include_once 'class-wc-gateway-affirm-charge-api.php';
         $charge_api = new WC_Gateway_Affirm_Charge_API($this, $order_id);
@@ -291,9 +452,21 @@ class WC_Gateway_Affirm extends WC_Payment_Gateway
 
         if (! $charge_api->voidCharge($charge_id) ) {
             /* translators: 1: charge id */
-            $order->add_order_note(sprintf(__('Unable to void charge %s', 'woocommerce-gateway-affirm')), $charge_id);
+            $order->add_order_note(
+                sprintf(
+                    __(
+                        'Unable to void charge %s', 
+                        'woocommerce-gateway-affirm'
+                    )
+                ), 
+                $charge_id
+            );
 
-            $this->log(__FUNCTION__, "Error: Unable to void charge with Affirm for order {$order_id} using charge id {$charge_id}");
+            $this->log(
+                __FUNCTION__, 
+                "Error: Unable to void charge with Affirm ".
+                "for order {$order_id} using charge id {$charge_id}"
+            );
             return false;
         }
 
@@ -302,12 +475,19 @@ class WC_Gateway_Affirm extends WC_Payment_Gateway
         $order->add_order_note(
             sprintf(
                 /* translators: 1: charge id */
-                __('Authorized charge %s has been voided', 'woocommerce-gateway-affirm'),
+                __(
+                    'Authorized charge %s has been voided', 
+                    'woocommerce-gateway-affirm'
+                ),
                 $charge_id
             )
         );
 
-        $this->log(__FUNCTION__, "Info: Successfully voided {$charge_id} for order {$order_id}");
+        $this->log(
+            __FUNCTION__, 
+            "Info: Successfully voided {$charge_id} '.
+            'for order {$order_id}"
+        );
 
         return true;
     }
@@ -323,31 +503,63 @@ class WC_Gateway_Affirm extends WC_Payment_Gateway
 
         $this->form_fields = array(
         'enabled' => array(
-        'title'       => __('Enable/Disable', 'woocommerce-gateway-affirm'),
-        'label'       => __('Enable Affirm', 'woocommerce-gateway-affirm'),
+        'title'       => __(
+            'Enable/Disable', 
+            'woocommerce-gateway-affirm'
+        ),
+        'label'       => __(
+            'Enable Affirm', 
+            'woocommerce-gateway-affirm'
+        ),
         'type'        => 'checkbox',
-        'description' => __('This controls whether or not this gateway is enabled within WooCommerce.', 'woocommerce-gateway-affirm'),
+        'description' => __(
+            'This controls whether or not this '.
+            'gateway is enabled within WooCommerce.', 
+            'woocommerce-gateway-affirm'
+        ),
         'default'     => 'yes',
         'desc_tip'    => true,
         ),
         'title' => array(
-        'title'       => __('Title', 'woocommerce-gateway-affirm'),
+        'title'       => __(
+            'Title', 
+            'woocommerce-gateway-affirm'
+        ),
         'type'        => 'text',
-        'description' => __('This controls the title which the user sees during checkout.', 'woocommerce-gateway-affirm'),
-        'default'     => __('Affirm Monthly Payments', 'woocommerce-gateway-affirm'),
+        'description' => __(
+            'This controls the title which the user sees during checkout.', 
+            'woocommerce-gateway-affirm'
+        ),
+        'default'     => __(
+            'Affirm Monthly Payments', 
+            'woocommerce-gateway-affirm'
+        ),
         'desc_tip'    => true,
         ),
         'description' => array(
         'title'       => __('Description', 'woocommerce-gateway-affirm'),
         'type'        => 'text',
-        'description' => __('This controls the description which the user sees during checkout.', 'woocommerce-gateway-affirm'),
-        'default'     => __('You will be redirected to Affirm to securely complete your purchase. It\'s quick and easy—get a real-time decision!', 'woocommerce-gateway-affirm'),
+        'description' => __(
+            'This controls the description which the user sees during checkout.', 
+            'woocommerce-gateway-affirm'
+        ),
+        'default'     => __(
+            'You will be redirected to Affirm to securely complete your purchase. '.
+            'It\'s quick and easy—get a real-time decision!', 
+            'woocommerce-gateway-affirm'
+        ),
         'desc_tip'    => true,
         ),
         'testmode' => array(
-        'title'       => __('Affirm Sandbox', 'woocommerce-gateway-affirm'),
+        'title'       => __(
+            'Affirm Sandbox', 
+            'woocommerce-gateway-affirm'
+        ),
         'type'        => 'checkbox',
-        'description' => __('Place the payment gateway in development mode.', 'woocommerce-gateway-affirm'),
+        'description' => __(
+            'Place the payment gateway in development mode.', 
+            'woocommerce-gateway-affirm'
+        ),
         'default'     => 'yes',
         ),
         'public_key' => array(
@@ -355,10 +567,16 @@ class WC_Gateway_Affirm extends WC_Payment_Gateway
         'type'        => 'text',
         'description' => sprintf(
             /* translators: 1: html starting code 2: html end code */
-                    __('This is the public key assigned by Affirm and available from your %1$smerchant dashboard%2$s .', 'woocommerce-gateway-affirm'),
-            '<a target="_blank" href="https://www.affirm.com/dashboard/" class="woocommerce_affirm_merchant_dashboard_link">',
+                    __(
+                        'This is the public key assigned by Affirm and available '.
+                        'from your %1$smerchant dashboard%2$s .', 
+                        'woocommerce-gateway-affirm'
+                    ),
+            '<a target="_blank" href="https://www.affirm.com/dashboard/" '.
+            'class="woocommerce_affirm_merchant_dashboard_link">',
             '</a>',
-            '<a target="_blank" href="https://sandbox.affirm.com/dashboard/" class="woocommerce_affirm_merchant_dashboard_link">',
+            '<a target="_blank" href="https://sandbox.affirm.com/dashboard/" '.
+            'class="woocommerce_affirm_merchant_dashboard_link">',
             '</a>'
         ),
         'default'     => '',
@@ -368,43 +586,90 @@ class WC_Gateway_Affirm extends WC_Payment_Gateway
         'type'        => 'text',
         'description' => sprintf(
             /* translators: 1: html starting code 2: html end code */
-                    __('This is the private key assigned by Affirm and available from your %1$smerchant dashboard%2$s.', 'woocommerce-gateway-affirm'),
-            '<a target="_blank" href="https://www.affirm.com/dashboard/" class="woocommerce_affirm_merchant_dashboard_link">',
+                    __(
+                        'This is the private key assigned by Affirm and '.
+                        'available from your %1$smerchant dashboard%2$s.', 
+                        'woocommerce-gateway-affirm'
+                    ),
+            '<a target="_blank" href="https://www.affirm.com/dashboard/" '.
+            'class="woocommerce_affirm_merchant_dashboard_link">',
             '</a>',
-            '<a target="_blank" href="https://sandbox.affirm.com/dashboard/" class="woocommerce_affirm_merchant_dashboard_link">',
+            '<a target="_blank" href="https://sandbox.affirm.com/dashboard/" '.
+            'class="woocommerce_affirm_merchant_dashboard_link">',
             '</a>'
         ),
         'default'     => '',
         ),
         'transaction_mode' => array(
-        'title'       => __('Transaction Mode', 'woocommerce-gateway-affirm'),
+        'title'       => __(
+            'Transaction Mode', 
+            'woocommerce-gateway-affirm'
+        ),
         'type'        => 'select',
-        'description' => __('Select how transactions should be processed.', 'woocommerce-gateway-affirm'),
+        'description' => __(
+            'Select how transactions should be processed.', 
+            'woocommerce-gateway-affirm'
+        ),
         'default'     => self::TRANSACTION_MODE_AUTH_AND_CAPTURE,
         'options'     => array(
-                    self::TRANSACTION_MODE_AUTH_AND_CAPTURE => __('Authorize and Capture', 'woocommerce-gateway-affirm'),
-                    self::TRANSACTION_MODE_AUTH_ONLY        => __('Authorize Only', 'woocommerce-gateway-affirm'),
+                    self::TRANSACTION_MODE_AUTH_AND_CAPTURE => __(
+                        'Authorize and Capture', 
+                        'woocommerce-gateway-affirm'
+                    ),
+                    self::TRANSACTION_MODE_AUTH_ONLY        => __(
+                        'Authorize Only', 
+                        'woocommerce-gateway-affirm'
+                    ),
         ),
         ),
 
             'checkout_mode' => array(
-                'title'       => __('Checkout Mode', 'woocommerce-gateway-affirm'),
+                'title'       => __(
+                    'Checkout Mode', 
+                    'woocommerce-gateway-affirm'
+                ),
                 'type'        => 'select',
-                'description' => __('Select redirect or modal as checkout mode experience.', 'woocommerce-gateway-affirm'),
+                'description' => __(
+                    'Select redirect or modal as checkout mode experience.', 
+                    'woocommerce-gateway-affirm'
+                ),
                 'default'     => self::CHECKOUT_MODE_MODAL,
                 'options'     => array(
-                    self::CHECKOUT_MODE_MODAL => __('Modal', 'woocommerce-gateway-affirm'),
-                    self::CHECKOUT_MODE_REDIRECT        => __('Redirect', 'woocommerce-gateway-affirm'),
+                    self::CHECKOUT_MODE_MODAL       => __(
+                        'Modal', 
+                        'woocommerce-gateway-affirm'
+                    ),
+                    self::CHECKOUT_MODE_REDIRECT    => __(
+                        'Redirect', 
+                        'woocommerce-gateway-affirm'
+                    ),
                 ),
             ),
             'cancel_url' => array(
-                'title'       => __('Cancel Affirm Page', 'woocommerce-gateway-affirm'),
+                'title'       => __(
+                    'Cancel Affirm Page', 
+                    'woocommerce-gateway-affirm'
+                ),
                 'type'        => 'select',
-                'description' => __('Choose to send user to the cart or payment page if Affirm payment is cancelled', 'woocommerce-gateway-affirm'),
+                'description' => __(
+                    'Choose to send user to the cart '.
+                    'or payment page if Affirm payment is cancelled', 
+                    'woocommerce-gateway-affirm'
+                ),
                 'default'     => self::CANCEL_TO_CART,
                 'options'     => array(
-                    self::CANCEL_TO_CART => __('Cart Page', 'woocommerce-gateway-affirm'),
-                    self::CANCEL_TO_PAYMENT => __('Payment Page', 'woocommerce-gateway-affirm')
+                    self::CANCEL_TO_CART => __(
+                        'Cart Page', 
+                        'woocommerce-gateway-affirm'
+                    ),
+                    self::CANCEL_TO_PAYMENT => __(
+                        'Payment Page', 
+                        'woocommerce-gateway-affirm'
+                    ),
+                    self::CANCEL_TO_CHECKOUT => __(
+                        'Checkout Page', 
+                        'woocommerce-gateway-affirm'
+                    )
                 ),
             ),
         'promo_id' => array(
@@ -412,74 +677,175 @@ class WC_Gateway_Affirm extends WC_Payment_Gateway
         'type'        => 'text',
         'description' => sprintf(
             /* translators: 1: html starting code 2: html end code */
-                    __('Promo ID is provided by your Affirm technical contact. If present, it will display customized messaging in the rendered marketing components. For more information, please reach out to %1$sAffirm Merchant Help%2$s.', 'woocommerce-gateway-affirm'),
+                    __(
+                        'Promo ID is provided by your Affirm technical contact. '.
+                        'If present, it will display customized messaging in the '.
+                        'rendered marketing components. For more information, '.
+                        'please reach out to %1$sAffirm Merchant Help%2$s.', 
+                        'woocommerce-gateway-affirm'
+                    ),
             '<a target="_blank" href="https://docs.affirm.com/Contact_Us">',
             '</a>'
         ),
             'default'     => '',
         ),
         'affirm_color' => array(
-        'title'       => __('Affirm Color', 'woocommerce-gateway-affirm'),
-        'type'        => 'select',
-        'description' => __('Affirm logo/text color on the monthly payment messaging.', 'woocommerce-gateway-affirm'),
-        'default'     => 'blue',
-        'options'     => array(
-                    'blue'  => __('Blue', 'woocommerce-gateway-affirm'),
-                    'black' => __('Black', 'woocommerce-gateway-affirm'),
-                    'white' => __('White', 'woocommerce-gateway-affirm'),
+        'title'       => __(
+            'Affirm Color', 
+            'woocommerce-gateway-affirm'
+        ),
+            'type'        => 'select',
+            'description' => __(
+                'Affirm logo/text color on the monthly payment messaging.', 
+                'woocommerce-gateway-affirm'
+            ),
+            'default'     => 'blue',
+            'options'     => array(
+                    'blue'  => __(
+                        'Blue', 
+                        'woocommerce-gateway-affirm'
+                    ),
+                    'black' => __(
+                        'Black', 
+                        'woocommerce-gateway-affirm'
+                    ),
+                    'white' => __(
+                        'White', 
+                        'woocommerce-gateway-affirm'
+                    ),
         ),
         ),
         'show_learnmore' => array(
-        'title'       => __('Show Learn More', 'woocommerce-gateway-affirm'),
+        'title'       => __(
+            'Show Learn More', 
+            'woocommerce-gateway-affirm'
+        ),
         'type'        => 'checkbox',
-        'description' => __('Show Learn More link in monthly payment messaging.', 'woocommerce-gateway-affirm'),
+        'description' => __(
+            'Show Learn More link in monthly payment messaging.', 
+            'woocommerce-gateway-affirm'
+        ),
         'default'     => 'yes',
         ),
             'categoryALA' => array(
-                'title'       => __('Category Promo Messaging', 'woocommerce-gateway-affirm'),
-                'label'       => __('Enable category promotional messaging', 'woocommerce-gateway-affirm'),
+                'title'       => __(
+                    'Category Promo Messaging', 
+                    'woocommerce-gateway-affirm'
+                ),
+                'label'       => __(
+                    'Enable category promotional messaging', 
+                    'woocommerce-gateway-affirm'
+                ),
                 'type'        => 'checkbox',
-                'description' => __('Show promotional messaging at category level pages.', 'woocommerce-gateway-affirm'),
+                'description' => __(
+                    'Show promotional messaging at category level pages.', 
+                    'woocommerce-gateway-affirm'
+                ),
                 'default'     => 'yes',
             ),
             'productALA' => array(
-                'title'       => __('Product Promo Messaging', 'woocommerce-gateway-affirm'),
-                'label'       => __('Enable product promotional messaging', 'woocommerce-gateway-affirm'),
+                'title'       => __(
+                    'Product Promo Messaging', 
+                    'woocommerce-gateway-affirm'
+                ),
+                'label'       => __(
+                    'Enable product promotional messaging', 
+                    'woocommerce-gateway-affirm'
+                ),
                 'type'        => 'checkbox',
-                'description' => __('Show promotional messaging at product level pages.', 'woocommerce-gateway-affirm'),
+                'description' => __(
+                    'Show promotional messaging at product level pages.', 
+                    'woocommerce-gateway-affirm'
+                ),
                 'default'     => 'yes',
             ),
             'cartALA' => array(
-                'title'       => __('Cart Promo Messaging', 'woocommerce-gateway-affirm'),
-                'label'       => __('Enable cart promotional messaging', 'woocommerce-gateway-affirm'),
+                'title'       => __(
+                    'Cart Promo Messaging', 
+                    'woocommerce-gateway-affirm'
+                ),
+                'label'       => __(
+                    'Enable cart promotional messaging', 
+                    'woocommerce-gateway-affirm'
+                ),
                 'type'        => 'checkbox',
-                'description' => __('Show promotional messaging on cart.', 'woocommerce-gateway-affirm'),
+                'description' => __(
+                    'Show promotional messaging on cart.', 
+                    'woocommerce-gateway-affirm'
+                ),
                 'default'     => 'yes',
             ),
             'min' => array(
-               'title'           => __('Order Minimum', 'woocommerce-gateway-affirm'),
+            'title'           => __(
+                'Order Minimum', 
+                'woocommerce-gateway-affirm'
+            ),
                'type'           => 'text',
-               'description'  => 'Set minimum amount for Affirm to appear at checkout.',
+               'description'  => 'Set minimum amount for Affirm '.
+                    'to appear at checkout.',
                'default'      => '50',
             ),
             'max' => array(
-                'title'       => __('Order Maximum', 'woocommerce-gateway-affirm'),
+                'title'       => __(
+                    'Order Maximum', 
+                    'woocommerce-gateway-affirm'
+                ),
                 'type'           => 'text',
-                'description' => 'Set maximum amount for Affirm to appear at checkout.',
+                'description' => 'Set maximum amount for Affirm '.
+                    'to appear at checkout.',
                 'default'     => '30000'
             ),
             'debug' => array(
-                'title'       => __('Debug', 'woocommerce-gateway-affirm'),
-                'label'       => __('Enable debugging messages', 'woocommerce-gateway-affirm'),
+                'title'       => __(
+                    'Debug', 
+                    'woocommerce-gateway-affirm'
+                ),
+                'label'       => __(
+                    'Enable debugging messages', 
+                    'woocommerce-gateway-affirm'
+                ),
                 'type'        => 'checkbox',
-                'description' => __('Sends debug messages to the WooCommerce System Status log.', 'woocommerce-gateway-affirm'),
+                'description' => __(
+                    'Sends debug messages to the WooCommerce System Status log.', 
+                    'woocommerce-gateway-affirm'
+                ),
                 'default'     => 'yes',
             ),
             'enhanced_analytics' => array(
-                'title'       => __('Enable enhanced analytics', 'woocommerce-gateway-affirm'),
+                'title'       => __(
+                    'Enable enhanced analytics', 
+                    'woocommerce-gateway-affirm'
+                ),
                 'type'        => 'checkbox',
-                'description' => __('Enable analytics to optimize Affirm implementation and to maximize conversion rates.', 'woocommerce-gateway-affirm.'),
+                'description' => __(
+                    'Enable analytics to optimize '.
+                    'Affirm implementation and to '.
+                    'maximize conversion rates.', 
+                    'woocommerce-gateway-affirm.'
+                ),
                 'default'     => 'yes',
+            ),
+            'show_fee' => array(
+                'title'       => __(
+                    'Display Affirm fee', 
+                    'woocommerce-gateway-affirm'
+                ),
+                'type'        => 'checkbox',
+                'label' => __(
+                    'Display merchant fee', 
+                    'woocommerce-gateway-affirm.'
+                ),
+                'description' => __(
+                    'Display the portion of the '.
+                    'captured amount that represents '.
+                    'the mertchant fee. For any refunds '.
+                    'initiated outside of Woocommerce, '.
+                    'refunded fee will not be reflected '.
+                    'in the shown amount.', 
+                    'woocommerce-gateway-affirm.'
+                ),
+                'default'     => 'yes',
+                'desc_tip'    => true,
             ),
 
         );
@@ -513,7 +879,22 @@ class WC_Gateway_Affirm extends WC_Payment_Gateway
             parent::admin_options();
         } else {
             ?>
-            <div class="inline error"><p><strong><?php _e('Gateway Disabled', 'woocommerce-gateway-affirm'); ?></strong>: <?php _e('Affirm does not support your store currency.', 'woocommerce-gateway-affirm'); ?></p></div>
+            <div class="inline error">
+                <p>
+                    <strong>
+                    <?php _e(
+                        'Gateway Disabled', 
+                        'woocommerce-gateway-affirm'
+                    ); 
+                    ?>
+                    </strong>: 
+                    <?php _e(
+                        'Affirm does not support your store currency.', 
+                        'woocommerce-gateway-affirm'
+                    ); 
+                    ?>
+                </p>
+            </div>
             <?php
         }
     }
@@ -530,26 +911,59 @@ class WC_Gateway_Affirm extends WC_Payment_Gateway
             return;
         }
 
-        $general_settings_url = admin_url('admin.php?page=wc-settings');
-        $checkout_settings_url = admin_url('admin.php?page=wc-settings&tab=checkout');
-        $affirm_settings_url = admin_url('admin.php?page=wc-settings&tab=checkout&section=wc_gateway_affirm');
+        $general_settings_url = admin_url(
+            'admin.php?page=wc-settings'
+        );
+        $checkout_settings_url = admin_url(
+            'admin.php?page=wc-settings&tab=checkout'
+        );
+        $affirm_settings_url = admin_url(
+            'admin.php?page=wc-settings&tab=checkout&section=wc_gateway_affirm'
+        );
 
         // Check required fields.
         if (empty($this->public_key) || empty($this->private_key) ) {
             /* translators: 1: affirm settings url */
-            echo '<div class="error"><p>' . sprintf(__('Affirm: One or more of your keys is missing. Please enter your keys <a href="%s">here</a>', 'woocommerce-gateway-affirm'), $affirm_settings_url) . '</p></div>';
+            echo '<div class="error"><p>' . 
+            sprintf(
+                __(
+                    'Affirm: One or more of your '.
+                    'keys is missing. Please enter '.
+                    'your keys <a href="%s">here</a>', 
+                    'woocommerce-gateway-affirm'
+                ), 
+                $affirm_settings_url
+            ) . '</p></div>';
             return;
         }
 
         // Check for duplicate keys.
         if ($this->public_key == $this->private_key ) {
-            echo '<div class="error"><p>' . sprintf(__('Affirm: You have entered the same key in one or more fields. Each key must be unique. Please check and re-enter.', 'woocommerce-gateway-affirm'), $affirm_settings_url) . '</p></div>';
+            echo '<div class="error"><p>' . 
+            sprintf(
+                __(
+                    'Affirm: You have entered the same '.
+                    'key in one or more fields. '.
+                    'Each key must be unique. '.
+                    'Please check and re-enter.', 
+                    'woocommerce-gateway-affirm'
+                ), 
+                $affirm_settings_url
+            ) . '</p></div>';
             return;
         }
 
         // Check Currency.
         if ('USD' !== get_woocommerce_currency() ) {
-            echo '<div class="error"><p>' . sprintf(__('Affirm: Affirm only supports USD for currency.', 'woocommerce-gateway-affirm'), $general_settings_url) . '</p></div>';
+            echo '<div class="error"><p>' . 
+            sprintf(
+                __(
+                    'Affirm: Affirm only supports USD for currency.', 
+                    'woocommerce-gateway-affirm'
+                ), 
+                $general_settings_url
+            ) . 
+                '</p></div>';
             return;
         }
 
@@ -557,7 +971,19 @@ class WC_Gateway_Affirm extends WC_Payment_Gateway
         // plugin is not detected.
         if (! wc_checkout_is_https() ) {
             /* translators: 1: checkout settings url */
-            echo '<div class="error"><p>' . sprintf(__('Affirm: The <a href="%s">force SSL option</a> is disabled; your checkout may not be secure! Please enable SSL and ensure your server has a valid SSL certificate - Affirm will only work in test mode.', 'woocommerce-gateway-affirm'), $checkout_settings_url) . '</p></div>';
+            echo '<div class="error"><p>' . 
+            sprintf(
+                __(
+                    'Affirm: The <a href="%s">force SSL option</a> '.
+                    'is disabled; your checkout may not be secure! '.
+                    'Please enable SSL and ensure your server has '.
+                    'a valid SSL certificate - Affirm will only work '.
+                    'in test mode.', 
+                    'woocommerce-gateway-affirm'
+                ), 
+                $checkout_settings_url
+            ) . 
+                '</p></div>';
         }
     }
 
@@ -629,7 +1055,12 @@ class WC_Gateway_Affirm extends WC_Payment_Gateway
             $server = 'affirm.com';
         }
 
-        return 'https://' . $server . '/dashboard/#/details/' . urlencode($transaction_id);
+        return 'https://' . 
+            $server . 
+            '/dashboard/#/details/' . 
+            urlencode(
+                $transaction_id
+            );
     }
 
     /**
@@ -641,9 +1072,9 @@ class WC_Gateway_Affirm extends WC_Payment_Gateway
      */
     function is_available()
     {
-        if (is_page( wc_get_page_id( 'checkout' ) ) && 0 < get_query_var( 'order-pay' )) {
-            $order_id = absint( get_query_var( 'order-pay' ) );
-            $order    = wc_get_order( $order_id );
+        if (is_page(wc_get_page_id('checkout')) && 0 < get_query_var('order-pay')) {
+            $order_id = absint(get_query_var('order-pay'));
+            $order    = wc_get_order($order_id);
             $total = $order->get_total();
         } else {
             $total = WC()->cart->cart_contents_total;
@@ -654,17 +1085,19 @@ class WC_Gateway_Affirm extends WC_Payment_Gateway
             return false;
         }
 
-        $country = version_compare(WC_VERSION, '3.0', '<') ? WC()->customer->get_country() : WC()->customer->get_billing_country();
+        $country = version_compare(WC_VERSION, '3.0', '<') ? 
+            WC()->customer->get_country() : 
+            WC()->customer->get_billing_country();
         $min = $this->get_option('min');
         $max = $this->get_option('max');
 
         $available_country = ['US','AS','GU','MP','PR','VI'];
 
-        if( !in_array( $country, $available_country ) && $country !== '' ){
+        if (!in_array($country, $available_country) && $country !== '' ) {
             $is_available = false;
-        } elseif( $min > $total ){
+        } elseif ($min > $total ) {
             $is_available = false;
-        } elseif ( $max < $total ) {
+        } elseif ($max < $total ) {
             $is_available = false;
         }
         return $is_available;
@@ -687,22 +1120,38 @@ class WC_Gateway_Affirm extends WC_Payment_Gateway
      * @since  1.0.0
      */
     public function process_payment( $order_id )
-    {
-        $order = wc_get_order($order_id);
-        $order_key = version_compare(WC_VERSION, '3.0', '<') ? $order->order_key : $order->get_order_key();
-        $redirect_url = add_query_arg(
-            array(
-            'affirm' => '1',
-            'order_id' => $order_id,
-            'nonce' => wp_create_nonce('affirm-checkout-order-' . $order_id),
-            'key' => $order_key,
-            ), get_permalink(wc_get_page_id('checkout')) . '/order-pay/' . $order_id .'/'
-        );
-
+    {  
+        if ($_POST['affirm_token_preorder']) {
+            $redirect_url = $this->handleWcApi(true);   
+        } else {
+            $order = wc_get_order($order_id);
+            $order_key = version_compare(WC_VERSION, '3.0', '<') ? 
+                $order->order_key : 
+                $order->get_order_key();
+            $query_vars = WC()->query->get_query_vars();
+            $order_pay = $query_vars['order-pay'];
+            $redirect_url = add_query_arg(
+                array(
+                'affirm' => '1',
+                'order_id' => $order_id,
+                'nonce' => wp_create_nonce('affirm-checkout-order-' . $order_id),
+                'key' => $order_key,
+                ), get_permalink(
+                    wc_get_page_id(
+                        'checkout'
+                    )
+                ) . 
+                    $order_pay .
+                    '/' . 
+                    $order_id .'/'
+            );
+        }
+        
         return array(
         'result'   => 'success',
         'redirect' => $redirect_url,
-        );
+        );    
+
     }
 
     /**
@@ -714,7 +1163,13 @@ class WC_Gateway_Affirm extends WC_Payment_Gateway
      */
     public function canRefundOrder( $order )
     {
-        return ( $order && ( $this->issetOrderAuthOnlyFlag($order) || $order->get_transaction_id() ) );
+        return ( 
+            $order && 
+            ( 
+                $this->issetOrderAuthOnlyFlag($order) || 
+                $order->get_transaction_id() 
+                ) 
+            );
     }
 
     /**
@@ -729,13 +1184,26 @@ class WC_Gateway_Affirm extends WC_Payment_Gateway
     public function process_refund( $order_id, $refund_amount = null, $reason = '' )
     {
 
-        $this->log(__FUNCTION__, "Info: Beginning processing refund/void for order $order_id");
+        $this->log(
+            __FUNCTION__, 
+            "Info: Beginning processing ".
+            "refund/void for order $order_id"
+        );
 
         $order = wc_get_order($order_id);
 
         if (! $order ) {
-            $this->log(__FUNCTION__, "Error: Order {$order_id} could not be found.");
-            return new WP_Error('error', __('Refund failed: Unable to retrieve order', 'woocommerce-gateway-affirm'));
+            $this->log(
+                __FUNCTION__, 
+                "Error: Order {$order_id} could not be found."
+            );
+            return new WP_Error(
+                'error', 
+                __(
+                    'Refund failed: Unable to retrieve order', 
+                    'woocommerce-gateway-affirm'
+                )
+            );
         }
 
         $order_total = floatval($order->get_total());
@@ -744,8 +1212,21 @@ class WC_Gateway_Affirm extends WC_Payment_Gateway
         }
 
         if (! $this->canRefundOrder($order) ) {
-            $this->log(__FUNCTION__, "Error: Order {$order_id} is not refundable. It was neither authorized nor captured. The customer may have abandoned the order.");
-            return new WP_Error('error', __('Refund failed: The order is not refundable. It was neither authorized nor captured. The customer may have abandoned the order.', 'woocommerce-gateway-affirm'));
+            $this->log(
+                __FUNCTION__, 
+                "Error: Order {$order_id} is not refundable. ".
+                "It was neither authorized nor captured. ".
+                "The customer may have abandoned the order."
+            );
+            return new WP_Error(
+                'error', 
+                __(
+                    'Refund failed: The order is not refundable. '.
+                    'It was neither authorized nor captured. '.
+                    'The customer may have abandoned the order.', 
+                    'woocommerce-gateway-affirm'
+                )
+            );
         }
 
         include_once 'class-wc-gateway-affirm-charge-api.php';
@@ -754,10 +1235,28 @@ class WC_Gateway_Affirm extends WC_Payment_Gateway
         // Only an auth?  Just void and cancel the whole thing
         if ($this->issetOrderAuthOnlyFlag($order) ) {
 
-            $is_a_full_refund = ( abs($order_total - $refund_amount) < 0.01 ); // Floating point comparison to cents accuracy (Affirm only does USD)
+            $is_a_full_refund = (
+                abs(
+                    $order_total - $refund_amount
+                ) < 0.01 
+            ); 
+            // Floating point comparison to cents accuracy (Affirm only does USD)
             if (! $is_a_full_refund ) {
-                $this->log(__FUNCTION__, "Error: A partial refund of an auth-only order {$order_id} was attempted. You cannot partially refund an order until it has been captured.");
-                return new WP_Error('error', __('Refund failed: You cannot partially refund an order until it has been captured.', 'woocommerce-gateway-affirm'));
+                $this->log(
+                    __FUNCTION__, 
+                    "Error: A partial refund of an ".
+                    "auth-only order {$order_id} was attempted. ".
+                    "You cannot partially refund an order".
+                    " until it has been captured."
+                );
+                return new WP_Error(
+                    'error', 
+                    __(
+                        'Refund failed: You cannot partially refund '.
+                        'an order until it has been captured.', 
+                        'woocommerce-gateway-affirm'
+                    )
+                );
             }
 
             // Otherwise, proceed
@@ -765,8 +1264,20 @@ class WC_Gateway_Affirm extends WC_Payment_Gateway
             $result = $charge_api->voidCharge($charge_id);
 
             if (false === $result || is_wp_error($result) ) {
-                $this->log(__FUNCTION__, "Error: An error occurred while attempting to void order {$order_id}.");
-                return new WP_Error('error', __('Refund failed: The order had been authorized, and not captured, but voiding the order unexpectedly failed.', 'woocommerce-gateway-affirm'));
+                $this->log(
+                    __FUNCTION__, 
+                    "Error: An error occurred while ".
+                    "attempting to void order {$order_id}."
+                );
+                return new WP_Error(
+                    'error', 
+                    __(
+                        'Refund failed: The order had been authorized, '.
+                        'and not captured, but voiding '.
+                        'the order unexpectedly failed.', 
+                        'woocommerce-gateway-affirm'
+                    )
+                );
             }
 
             $order->add_order_note(
@@ -787,31 +1298,61 @@ class WC_Gateway_Affirm extends WC_Payment_Gateway
 
         $refund_amount_in_cents = intval(100 * $refund_amount);
         $charge_id = $order->get_transaction_id();
-        $result = $charge_api->refundCharge($charge_id, $refund_amount_in_cents);
+        $result = $charge_api->refundCharge(
+            $charge_id, 
+            $refund_amount_in_cents
+        );
 
         if (false === $result || is_wp_error($result) ) {
-            $this->log(__FUNCTION__, "Error: An error occurred while attempting to refund order {$order_id}.");
-            return new WP_Error('error', __('Refund failed: The order had been authorized and captured, but refunding the order unexpectedly failed.', 'woocommerce-gateway-affirm'));
+            $this->log(
+                __FUNCTION__, 
+                "Error: An error occurred while ".
+                "attempting to refund order {$order_id}."
+            );
+            return new WP_Error(
+                'error', 
+                __(
+                    'Refund failed: The order had been authorized and captured, '.
+                    'but refunding the order unexpectedly failed.', 
+                    'woocommerce-gateway-affirm'
+                )
+            );
         }
+
+        // Update fee amount on the order
+        $fee_refunded = intval($result['fee_refunded']);
+        $existing_fee_amount = intval($this->getOrderMeta($order_id, 'fee_amount'));
+        $new_fee_amount = $existing_fee_amount - $fee_refunded;
+        $this->updateOrderMeta($order_id, 'fee_amount', $new_fee_amount);
 
         $order->add_order_note(
             sprintf(
                 /* translators: 1: refund amount 2: refund id 3: reason */
-                __('Refunded %1$s - Refund ID: %2$s - Reason: %3$s', 'woocommerce-gateway-affirm'),
-                wc_price(0.01 * $result['amount']), // Affirm provides amounts in cents
+                __(
+                    'Refunded %1$s - Refund ID: %2$s - Reason: %3$s', 
+                    'woocommerce-gateway-affirm'
+                ),
+                wc_price(0.01 * $result['amount']), 
+                // Affirm provides amounts in cents
                 esc_html($result['id']),
                 esc_html($reason)
             )
         );
 
-        $this->log(__FUNCTION__, "Info: Successfully refunded {$refund_amount} for order {$order_id}");
+        $this->log(
+            __FUNCTION__, 
+            "Info: Successfully refunded".
+            " {$refund_amount} for order {$order_id}"
+        );
 
         return true;
     }
 
 
     /**
-     * We'll hook here to embed the Affirm JavaScript object bootstrapper into the checkout page
+     * We'll hook here to embed the 
+     * Affirm JavaScript object bootstrapper 
+     * into the checkout page
      *
      * @since  1.0.0
      * @return void
@@ -825,13 +1366,21 @@ class WC_Gateway_Affirm extends WC_Payment_Gateway
 
         $order = $this->validateOrderFromRequest();
         if (false === $order ) {
-            wp_die(__('Checkout using Affirm failed. Please try checking out again later, or try a different payment source.', 'woocommerce-gateway-affirm'));
+            wp_die(
+                __(
+                    'Checkout using Affirm failed. '.
+                    'Please try checking out again later, '.
+                    'or try a different payment source.', 
+                    'woocommerce-gateway-affirm'
+                )
+            );
         }
     }
 
 
     /**
-     * If we see the query args indicating that the Affirm bootstrap and Affirm-formatted cart
+     * If we see the query args indicating that 
+     * the Affirm bootstrap and Affirm-formatted cart
      * is/should be loaded, return true
      *
      * @since  1.0.0
@@ -843,7 +1392,10 @@ class WC_Gateway_Affirm extends WC_Payment_Gateway
             return false;
         }
 
-        if (! isset($_GET['affirm']) || ! isset($_GET['order_id']) || ! isset($_GET['nonce']) ) {
+        if (! isset($_GET['affirm'])  
+            || ! isset($_GET['order_id'])  
+            || ! isset($_GET['nonce']) 
+        ) {
             return false;
         }
 
@@ -872,7 +1424,12 @@ class WC_Gateway_Affirm extends WC_Payment_Gateway
 
         $order_id = absint($order_id);
 
-        if (empty($_GET['nonce']) || ! wp_verify_nonce($_GET['nonce'], 'affirm-checkout-order-' . $order_id) ) {
+        if (empty($_GET['nonce'])  
+            || ! wp_verify_nonce(
+                $_GET['nonce'], 
+                'affirm-checkout-order-' . $order_id
+            ) 
+        ) {
             return false;
         }
 
@@ -905,11 +1462,27 @@ class WC_Gateway_Affirm extends WC_Payment_Gateway
             return;
         }
 
-        // We made it this far, let's fire up affirm and embed the order data in an affirm friendly way
-        wp_enqueue_script('woocommerce_affirm', plugins_url('assets/js/affirm-checkout.js', dirname(__FILE__)), array( 'jquery', 'jquery-blockui' ), WC_GATEWAY_AFFIRM_VERSION, true);
+        // We made it this far, let's fire up affirm and 
+        //embed the order data in an affirm friendly way
+        wp_enqueue_script(
+            'woocommerce_affirm', 
+            plugins_url(
+                'assets/js/affirm-checkout.js', 
+                dirname(__FILE__)
+            ), 
+            array( 
+                'jquery', 
+                'jquery-blockui' 
+            ), 
+            WC_GATEWAY_AFFIRM_VERSION, true
+        );
 
-        $order_id = version_compare(WC_VERSION, '3.0', '<') ? $order->id : $order->get_id();
-        $order_key = version_compare(WC_VERSION, '3.0', '<') ? $order->order_key : $order->get_order_key();
+        $order_id = version_compare(WC_VERSION, '3.0', '<') ? 
+            $order->id : 
+            $order->get_id();
+        $order_key = version_compare(WC_VERSION, '3.0', '<') ? 
+            $order->order_key : 
+            $order->get_order_key();
 
         $confirmation_url = add_query_arg(
             array(
@@ -923,72 +1496,112 @@ class WC_Gateway_Affirm extends WC_Payment_Gateway
 
         if ($this->cancel_url == self::CANCEL_TO_CART ) {
             $cancel_url = html_entity_decode($order->get_cancel_order_url());
-        } else {
+        } else if ($this->cancel_url == self::CANCEL_TO_PAYMENT ) {
             $cancel_url = html_entity_decode($order->get_checkout_payment_url());
+        } else {
+            $cancel_url = wc_get_checkout_url();
         }
 
         $total_discount = floor(100 * $order->get_total_discount());
         $total_tax      = floor(100 * $order->get_total_tax());
-        $total_shipping = version_compare(WC_VERSION, '3.0', '<') ? $order->get_total_shipping() : $order->get_shipping_total();
-        $total_shipping = ! empty($order->get_shipping_method()) ? floor(100 * $total_shipping) : 0;
-        $total          = floor( strval(100 * $order->get_total()) ) ;
+        $total_shipping = version_compare(WC_VERSION, '3.0', '<') ? 
+            $order->get_total_shipping() : 
+            $order->get_shipping_total();
+        $total_shipping = ! empty($order->get_shipping_method()) ? 
+            floor(100 * $total_shipping) : 
+            0;
+        $total          = floor(strval(100 * $order->get_total()));
 
         $affirm_data = array(
-        'merchant' => array(
-        'user_confirmation_url' => $confirmation_url,
-        'user_cancel_url'       => $cancel_url,
-        ),
-        'items'     => $this->getItemsFormattedForAffirm($order),
-        'discounts' => array(
-        'discount' => array(
+            'merchant' => array(
+                'user_confirmation_url' => $confirmation_url,
+                'user_cancel_url'       => $cancel_url,
+            ),
+            'items'     => $this->getItemsFormattedForAffirm($order),
+            'discounts' => array(
+                'discount' => array(
                     'discount_amount' => $total_discount,
-        ),
-        ),
-        'metadata' => array(
-        'order_key'        => $order_key,
-        'platform_type'    => 'WooCommerce',
-        'platform_version' => WOOCOMMERCE_VERSION,
-        'platform_affirm'  => WC_GATEWAY_AFFIRM_VERSION,
-                'mode' => $this->checkout_mode
-        ),
-        'tax_amount'      => $total_tax,
-        'shipping_amount' => $total_shipping,
-        'total'           => $total,
-        'order_id'         => $order_id,
+                ),
+            ),
+            'metadata' => array(
+                'order_key'        => $order_key,
+                'platform_type'    => 'WooCommerce',
+                'platform_version' => WOOCOMMERCE_VERSION,
+                'platform_affirm'  => WC_GATEWAY_AFFIRM_VERSION,
+                'mode'             => $this->checkout_mode
+            ),
+            'tax_amount'      => $total_tax,
+            'shipping_amount' => $total_shipping,
+            'total'           => $total,
+            'order_id'        => $order_id,
         );
 
         $old_wc = version_compare(WC_VERSION, '3.0', '<');
 
         $affirm_data += array(
-        'currency'                => $old_wc ? $order->get_order_currency() : $order->get_currency(),
-        'billing' => array(
-        'name' => array(
-                    'first'   => $old_wc ? $order->billing_first_name : $order->get_billing_first_name(),
-                    'last'    => $old_wc ? $order->billing_last_name : $order->get_billing_last_name(),
-        ),
-        'address' => array(
-        'line1'   => $old_wc ? $order->billing_address_1 : $order->get_billing_address_1(),
-        'line2'   => $old_wc ? $order->billing_address_2 : $order->get_billing_address_2(),
-        'city'    => $old_wc ? $order->billing_city : $order->get_billing_city(),
-        'state'   => $old_wc ? $order->billing_state : $order->get_billing_state(),
-        'zipcode' => $old_wc ? $order->billing_postcode : $order->get_billing_postcode(),
-        ),
-        'email'           => $old_wc ? $order->billing_email : $order->get_billing_email(),
-        'phone_number'    => $old_wc ? $order->billing_phone : $order->get_billing_phone(),
-        ),
-        'shipping' => array(
-        'name' => array(
-                    'first'   => $old_wc ? $order->shipping_first_name : $order->get_shipping_first_name(),
-                    'last'    => $old_wc ? $order->shipping_last_name : $order->get_shipping_last_name(),
-        ),
-        'address' => array(
-        'line1'   => $old_wc ? $order->shipping_address_1 : $order->get_shipping_address_1(),
-        'line2'   => $old_wc ? $order->shipping_address_2 : $order->get_shipping_address_2(),
-        'city'    => $old_wc ? $order->shipping_city : $order->get_shipping_city(),
-        'state'   => $old_wc ? $order->shipping_state : $order->get_shipping_state(),
-        'zipcode' => $old_wc ? $order->shipping_postcode : $order->get_shipping_postcode(),
-        ),
-        ),
+            'currency' => $old_wc ? 
+                $order->get_order_currency() : 
+                $order->get_currency(),
+            'billing' => array(
+                'name' => array(
+                    'first'   => $old_wc ? 
+                        $order->billing_first_name : 
+                        $order->get_billing_first_name(),
+                    'last'    => $old_wc ? 
+                        $order->billing_last_name : 
+                        $order->get_billing_last_name(),
+                ),
+                'address' => array(
+                    'line1'   => $old_wc ? 
+                        $order->billing_address_1 : 
+                        $order->get_billing_address_1(),
+                    'line2'   => $old_wc ? 
+                        $order->billing_address_2 : 
+                        $order->get_billing_address_2(),
+                    'city'    => $old_wc ? 
+                        $order->billing_city : 
+                        $order->get_billing_city(),
+                    'state'   => $old_wc ? 
+                        $order->billing_state : 
+                        $order->get_billing_state(),
+                    'zipcode' => $old_wc ? 
+                        $order->billing_postcode : 
+                        $order->get_billing_postcode(),
+                ),
+                'email'           => $old_wc ? 
+                    $order->billing_email : 
+                    $order->get_billing_email(),
+                'phone_number'    => $old_wc ? 
+                    $order->billing_phone : 
+                    $order->get_billing_phone(),
+            ),
+            'shipping' => array(
+                'name' => array(
+                    'first'   => $old_wc ? 
+                        $order->shipping_first_name : 
+                        $order->get_shipping_first_name(),
+                    'last'    => $old_wc ? 
+                        $order->shipping_last_name : 
+                        $order->get_shipping_last_name(),
+                ),
+                'address' => array(
+                    'line1'   => $old_wc ? 
+                        $order->shipping_address_1 : 
+                        $order->get_shipping_address_1(),
+                    'line2'   => $old_wc ? 
+                        $order->shipping_address_2 : 
+                        $order->get_shipping_address_2(),
+                    'city'    => $old_wc ? 
+                        $order->shipping_city : 
+                        $order->get_shipping_city(),
+                    'state'   => $old_wc ? 
+                        $order->shipping_state : 
+                        $order->get_shipping_state(),
+                    'zipcode' => $old_wc ? 
+                        $order->shipping_postcode : 
+                        $order->get_shipping_postcode(),
+                ),
+            ),
         );
 
         /**
@@ -1000,11 +1613,19 @@ class WC_Gateway_Affirm extends WC_Payment_Gateway
         foreach ( array( 'name', 'address' ) as $field ) {
             $shipping_field = array_filter($affirm_data['shipping'][ $field ]);
             if (empty($shipping_field) ) {
-                $affirm_data['shipping'][ $field  ] = $affirm_data['billing'][ $field  ];
+                $affirm_data['shipping'][ $field  ] 
+                    = $affirm_data['billing'][ $field  ];
             }
         }
 
-        wp_localize_script('woocommerce_affirm', 'affirmData', apply_filters('wc_gateway_affirm_initiate_checkout_data', $affirm_data));
+        wp_localize_script(
+            'woocommerce_affirm', 
+            'affirmData', 
+            apply_filters(
+                'wc_gateway_affirm_initiate_checkout_data', 
+                $affirm_data
+            )
+        );
     }
 
     /**
@@ -1036,7 +1657,13 @@ class WC_Gateway_Affirm extends WC_Payment_Gateway
 
                 $product = $order->get_product_from_item($item);
                 $sku = $this->_clean($product->get_sku());
-                $unit_price = floor(100.0 * $order->get_item_subtotal($item, false)); // cents please
+                $unit_price = floor(
+                    100.0 * $order->get_item_subtotal(
+                        $item, 
+                        false
+                    )
+                ); 
+                // cents please
 
                 $item_image_id = $product->get_image_id();
                 $image_attributes = wp_get_attachment_image_src($item_image_id);
@@ -1078,20 +1705,34 @@ class WC_Gateway_Affirm extends WC_Payment_Gateway
             return;
         }
 
-        if ( ! isset( $_GET['section'] ) ) {
+        if (! isset($_GET['section']) ) {
             return;
         }
 
-        if ( 'wc_gateway_affirm' == $_GET['section'] || 'affirm' == $_GET['section'] ) {
+        if ('wc_gateway_affirm' == $_GET['section']  
+            || 'affirm' == $_GET['section'] 
+        ) {
 
-            wp_register_script('woocommerce_affirm_admin', plugins_url('assets/js/affirm-admin.js', dirname(__FILE__)), array('jquery'), WC_GATEWAY_AFFIRM_VERSION);
+            wp_register_script(
+                'woocommerce_affirm_admin', 
+                plugins_url(
+                    'assets/js/affirm-admin.js', 
+                    dirname(__FILE__)
+                ), 
+                array('jquery'), 
+                WC_GATEWAY_AFFIRM_VERSION
+            );
 
             $admin_array = array(
                 'sandboxedApiKeysURI' => 'https://sandbox.affirm.com/dashboard/#/apikeys',
                 'apiKeysURI' => 'https://affirm.com/dashboard/#/apikeys',
             );
 
-            wp_localize_script('woocommerce_affirm_admin', 'affirmAdminData', $admin_array);
+            wp_localize_script(
+                'woocommerce_affirm_admin', 
+                'affirmAdminData', 
+                $admin_array
+            );
             wp_enqueue_script('woocommerce_affirm_admin');
         }
     }
@@ -1106,7 +1747,9 @@ class WC_Gateway_Affirm extends WC_Payment_Gateway
      */
     public function issetOrderAuthOnlyFlag( $order )
     {
-        $order_id = version_compare(WC_VERSION, '3.0', '<') ? $order->id : $order->get_id();
+        $order_id = version_compare(
+            WC_VERSION, '3.0', '<'
+        ) ? $order->id : $order->get_id();
         return $this->getOrderMeta($order_id, 'authorized_only');
     }
 
@@ -1119,7 +1762,9 @@ class WC_Gateway_Affirm extends WC_Payment_Gateway
      */
     public function setOrderAuthOnlyFlag( $order )
     {
-        $order_id = version_compare(WC_VERSION, '3.0', '<') ? $order->id : $order->get_id();
+        $order_id = version_compare(
+            WC_VERSION, '3.0', '<'
+        ) ? $order->id : $order->get_id();
         return $this->updateOrderMeta($order_id, 'authorized_only', true);
     }
 
@@ -1132,7 +1777,10 @@ class WC_Gateway_Affirm extends WC_Payment_Gateway
      */
     public function clearOrderAuthOnlyFlag( $order )
     {
-        $order_id = version_compare(WC_VERSION, '3.0', '<') ? $order->id : $order->get_id();
+        $order_id = version_compare(
+            WC_VERSION, '3.0', '<'
+        ) ? 
+            $order->id : $order->get_id();
         return $this->deleteOrderMeta($order_id, 'authorized_only');
     }
 
@@ -1191,7 +1839,10 @@ class WC_Gateway_Affirm extends WC_Payment_Gateway
                 $this->log = new WC_Logger();
             }
 
-            $this->log->add('woocommerce-gateway-' . $this->id, $context . ' - ' . $message);
+            $this->log->add(
+                'woocommerce-gateway-' . $this->id, 
+                $context . ' - ' . $message
+            );
 
             if (defined('WP_DEBUG') && WP_DEBUG ) {
                 error_log($context . ' - ' . $message);
@@ -1202,9 +1853,10 @@ class WC_Gateway_Affirm extends WC_Payment_Gateway
     /**
      * Removes all special characters
      *
-     * @param $sku
+     * @param string $sku sku
+     * 
      * @return string
-    */
+     */
     private function _clean($sku)
     {
         $sku = str_replace(' ', '-', $sku); // Replaces all spaces with hyphens.
